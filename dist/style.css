@@ -19,8 +19,11 @@
 .creator-note p{margin:0;font-size:13px;line-height:1.9;color:#d5e3cc}
 @media(max-width:720px){.visitor-invite{padding:14px}.visitor-invite .primary{width:100%}}
 
-.export-stage{position:fixed;left:0;top:0;opacity:0;pointer-events:none;z-index:-1}
-.export-snapshot{transform:none!important;transform-style:flat!important;isolation:auto!important;filter:none!important;overflow:hidden!important;box-shadow:0 25px 55px #0005!important}
+.export-snapshot{transform:none!important;transform-style:flat!important;isolation:auto!important;overflow:hidden!important;animation:none!important;transition:none!important;box-shadow:0 18px 40px #0006!important}
 .export-snapshot,.export-snapshot *,.export-snapshot::before,.export-snapshot::after{animation:none!important;transition:none!important}
-.export-snapshot *{transform:none!important;transform-style:flat!important;filter:none!important}
-.export-snapshot>.card-top,.export-snapshot>.identity,.export-snapshot>.character-stage,.export-snapshot>.card-celebration,.export-snapshot>.character-traits,.export-snapshot>.stats,.export-snapshot>.card-foot{transform:none!important}
+.export-snapshot>.card-top,.export-snapshot>.identity,.export-snapshot>.character-stage,.export-snapshot>.card-celebration,.export-snapshot>.character-traits,.export-snapshot>.stats,.export-snapshot>.card-foot,.export-snapshot .character-stage>img{transform:none!important;transform-style:flat!important}
+.export-snapshot::before{opacity:.35}
+.export-snapshot .character-traits{transform:none!important}
+.export-snapshot .character-traits span{white-space:nowrap;font-family:Vazir,Tahoma,sans-serif;line-height:1.35}
+.export-snapshot .character-code{writing-mode:vertical-rl;transform:none!important}
+.export-snapshot .character-orbit{filter:none!important}
