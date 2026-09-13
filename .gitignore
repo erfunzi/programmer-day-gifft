@@ -2,7 +2,16 @@ work/
 outputs/
 .sites-runtime/
 .openai/
+.cursor/
 .DS_Store
 .venv/
 *.zip
 *.tar.gz
+.env
+.env.*
+!.env.example
+node_modules/
+.cache/
+dist/client/
+dist/server/
+dist/.openai/

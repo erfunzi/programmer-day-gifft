@@ -1,0 +1,7 @@
+{
+  "name": "developer-card", "private": true, "type": "module",
+  "scripts": {"start":"node server/node.mjs","dev":"node server/node.mjs","build":"node scripts/build.mjs","test":"node --test tests/*.test.mjs"},
+  "engines":{"node":">=22"},
+  "dependencies":{"html-to-image":"1.11.13"},
+  "devDependencies":{"esbuild":"0.25.10"}
+}

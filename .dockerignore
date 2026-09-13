@@ -5,3 +5,12 @@
 work
 outputs
 *.md
+.env
+.env.*
+node_modules
+.cache
+.venv
+.cursor
+dist/client
+dist/server
+dist/.openai

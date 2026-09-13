@@ -18,3 +18,5 @@
 .creator-note strong{display:block;font-size:16px;color:var(--mint);margin-bottom:6px}
 .creator-note p{margin:0;font-size:13px;line-height:1.9;color:#d5e3cc}
 @media(max-width:720px){.visitor-invite{padding:14px}.visitor-invite .primary{width:100%}}
+
+.export-snapshot,.export-snapshot *,.export-snapshot::before,.export-snapshot::after{animation:none!important;transition:none!important}.export-snapshot>.card-top,.export-snapshot>.identity,.export-snapshot>.character-stage,.export-snapshot>.card-celebration,.export-snapshot>.character-traits,.export-snapshot>.stats,.export-snapshot>.card-foot{transform:none!important}

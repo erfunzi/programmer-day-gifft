@@ -5,3 +5,12 @@ services:
     ports:
       - "127.0.0.1:8081:80"
     restart: unless-stopped
+    env_file: .env
+    environment:
+      PORT: "80"
+      CACHE_DIR: /app/.cache
+      TRUST_PROXY: "true"
+    volumes:
+      - github-cache:/app/.cache
+volumes:
+  github-cache:
