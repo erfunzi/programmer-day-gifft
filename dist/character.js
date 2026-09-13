@@ -143,6 +143,7 @@ function characterAssetPath(style,kind){
 /** Build a unique free AI URL (Pollinations). Used as optional upgrade; local pack is the reliable default. */
 function liveAiCharacterUrl(data,style){
  const p=data.character;
+ const signals=window.__developerReadmes||{};
  const gender={
   neutral:'androgynous cute humanoid robot with neon green visor eyes, mechanical hands',
   feminine:'friendly young woman software developer, shoulder-length dark wavy hair',
@@ -156,11 +157,13 @@ function liveAiCharacterUrl(data,style){
   game:'gaming headset and floating pixel crystals',
   systems:'circuit glow accents and terminal-green code wisps'
  }[p.kind]||'holding a laptop';
+ const readmeSignal=[signals.profile,...(signals.projects||[]).map(x=>x.text)].filter(Boolean).join(' ').replace(/[^\p{L}\p{N}\s.,:+#-]/gu,' ').replace(/\s+/g,' ').slice(0,900);
  const prompt=[
   'High quality 3D Pixar-like collectible character, waist-up, centered',
   gender,
   'wearing vibrant lime-green fleece hoodie',
   props,
+  readmeSignal?'visual motifs inspired by this public README signal: '+readmeSignal:'',
   'soft cinematic lighting, isolated cutout, transparent background, no backdrop, no studio set',
   'no text, no watermark, no logo'
  ].join(', ');
@@ -231,7 +234,7 @@ function setCharacterImage(img,sources,onReady){
  tryNext();
 }
 
-function renderCharacter(data,{preferLiveAi=false}={}){
+function renderCharacter(data,{preferLiveAi=true}={}){
  const p=characterProfile(data);data.character=p;
  const style=characterStyle();
  const local=characterAssetPath(style,p.kind);
