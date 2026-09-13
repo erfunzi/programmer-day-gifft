@@ -1,31 +1,53 @@
-# Developer Card
+# کارت توسعه‌دهنده؛ روز برنامه‌نویس
 
-Public GitHub profile cards. A private server token is used only for fixed public GitHub endpoints; no account password is needed.
+## دربارهٔ پروژه
 
-## Local setup
+«کارت توسعه‌دهنده» یک تجربهٔ تعاملی برای تبریک روز برنامه‌نویس است. هر فرد با وارد کردن آیدی GitHub خود، یک کارت اختصاصی دریافت می‌کند که از اطلاعات عمومی همان پروفایل ساخته شده است.
 
-Requires Node.js 22+. Run `npm ci`, then `npm run build`.
-Copy `.env.example` to `.env`, and set `GITHUB_TOKEN` to a fine-grained personal access token with public-repository access only and no write permissions. Keep this file outside `dist`. Run `npm start` and open http://localhost:4173.
+این تجربه، بیو، زبان‌های برنامه‌نویسی، پروژه‌ها، موضوع‌ها، فعالیت اخیر، ستاره‌ها، README پروفایل و README پروژه‌های شاخص را بررسی می‌کند و از آن‌ها برای ساخت یک روایت شخصی، آمار زنده و یک کاراکتر سه‌بعدی اختصاصی الهام می‌گیرد.
 
-Never commit `.env`, paste tokens into chat, or expose a token as a frontend environment variable. GitHub token expiration/revocation still requires rotation. Account passwords do not work as API tokens.
+## قابلیت‌ها
 
-## Deployment
+- کارت تبریک منحصربه‌فرد برای هر پروفایل عمومی GitHub
+- تحلیل پروژه‌ها، زبان‌ها، موضوع‌ها و READMEهای عمومی
+- ساخت کاراکترهای متنوع برای حوزه‌های وب، داده، موبایل، بازی، سیستم و متن‌باز
+- انتخاب خودکار سبک کاراکتر بر اساس نشانه‌های روشن پروفایل؛ در حالت مبهم، ظاهر خنثی
+- حرکت سه‌بعدی پیش‌فرض و طراحی مناسب برای اشتراک‌گذاری
+- لینک اختصاصی و QR Code برای فرستادن کارت به دیگران
+- دعوت مستقیم مهمان برای ساخت کارت خودش
+- دانلود تصویر با همان ظاهر کارت نمایش‌داده‌شده
+- نمایش لینک سازنده برای حمایت، دنبال‌کردن و ستاره‌دادن به پروژه
 
-- Existing Docker host: `docker compose up -d --build`. The existing localhost port 8081 is preserved. `.env` is read by Compose; the token is injected at runtime, never baked into the image. Public profile caches persist in the `github-cache` volume. Compose enables `TRUST_PROXY` because the supplied host nginx overwrites `X-Real-IP`; keep the container bound to localhost. Do not enable this flag on a directly public Node port.
-- Sites: build as a Worker (`dist/server/index.js`, static assets in `dist/client`). Set `GITHUB_TOKEN` as a Sites secret before deploying. A local `.env` is not automatically available on hosted Sites.
+## هدف
 
-## Quota and cache
+این پروژه برای قدردانی از آدم‌هایی ساخته شده که پشت هر commit، ایده، کنجکاوی و داستانی انسانی دارند.
 
-The browser calls `/api/github/<username>` and never authenticates directly to GitHub. One uncached profile costs 1–3 GitHub requests (up to 200 public repositories). Responses are shared for 6 hours. On temporary upstream failure, a cached copy up to 7 days old is returned and marked stale in the UI. Not-found results are cached for 10 minutes. Concurrent requests for one profile are coalesced per process/isolate, and uncached lookups are throttled (20 per client per minute; 16 simultaneous profile loads).
+روز برنامه‌نویس مبارک. ✳
 
-Docker uses a disk cache. Sites uses Cloudflare's edge Cache API, which is per data center, can be evicted, and is not a globally consistent quota store. These limits mitigate normal bursts, not distributed abuse. High-traffic installations should add edge/WAF rate limiting and shared durable storage; use a GitHub App with appropriate installation quotas for larger scale. Authenticated personal tokens generally have 5,000 requests/hour, not unlimited access. No token rotation scheme bypasses GitHub limits.
+---
 
-## PNG export
+# Developer Card · Programmer’s Day
 
-`html-to-image` captures a clone of the displayed card DOM at 3× resolution, embedding fonts and the already-selected character. The card is captured face-on with animation stopped; the same text, layout, colors, avatar, traits and QR are retained. The page animation is not modified. Export fails visibly if an image cannot be embedded, rather than silently substituting another character.
+## About
 
-## Verification
+Developer Card is an interactive Programmer’s Day celebration experience. Each person enters their GitHub username and receives a personalized card built from their public profile.
 
-`npm test` checks server auth, cache, stale responses, quota handling, endpoint validation and concurrent request coalescing. `npm run build` creates Worker output. Keep generated `dist/client`, `dist/server`, `.cache`, `.env`, and `node_modules` out of source control.
+The experience analyzes the profile bio, programming languages, repositories, topics, recent activity, stars, profile README, and selected project READMEs. These signals inspire a personal story, live statistics, and a custom 3D developer character.
 
-References: https://docs.github.com/en/rest/using-the-rest-api/rate-limits-for-the-rest-api and https://github.com/bubkoo/html-to-image
+## Features
+
+- A unique celebration card for every public GitHub profile
+- Analysis of public repositories, languages, topics, and README files
+- Multiple character archetypes for web, data, mobile, game, systems, and open-source builders
+- Automatic appearance style based on clear profile signals, with a neutral fallback when signals are ambiguous
+- Default 3D motion with a design made for sharing
+- A dedicated share link and QR Code for every card
+- A direct invitation for visitors to create their own card
+- Image export that preserves the card shown on screen
+- A creator link for following, supporting, and starring the project
+
+## Purpose
+
+This project celebrates the humans behind every commit: their ideas, curiosity, craft, and stories.
+
+Happy Programmer’s Day. ✳

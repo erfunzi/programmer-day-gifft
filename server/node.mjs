@@ -23,4 +23,4 @@ const server=createServer(async(req,res)=>{
   res.writeHead(200,{'Content-Type':types[extname(target)]||'application/octet-stream','Cache-Control':extname(target)==='.html'?'no-cache':'public, max-age=3600','X-Content-Type-Options':'nosniff'});res.end(req.method==='HEAD'?undefined:data);
  }catch{res.writeHead(500);res.end('Internal server error')}
 });
-server.listen(Number(process.env.PORT)||4173,'0.0.0.0',()=>console.log('Developer Card: http://localhost:'+(process.env.PORT||4173)));
+server.listen(Number(process.env.PORT)||8080,'0.0.0.0',()=>console.log('Developer Card: http://localhost:'+(process.env.PORT||8080)));
