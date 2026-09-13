@@ -35,6 +35,6 @@ ln -sfn "$NGINX_AVAILABLE" "$NGINX_ENABLED"
 nginx -t
 systemctl reload nginx
 
-echo "OK: ${SITE_NAME} -> 127.0.0.1:8080"
+echo "OK: ${SITE_NAME} -> 127.0.0.1:8081"
 echo "Point DNS A record of ${SITE_NAME} to this server, then:"
 echo "  sudo certbot --nginx -d ${SITE_NAME}"
