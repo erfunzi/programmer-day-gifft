@@ -2,3 +2,7 @@ work/
 outputs/
 .sites-runtime/
 .openai/
+.DS_Store
+.venv/
+*.zip
+*.tar.gz

@@ -10,9 +10,10 @@ const CHARACTER_PACK={
 const STYLE_LABEL={neutral:'ربات',feminine:'زنانه',masculine:'مردانه'};
 let lockCharacterStyleFromUrl=false;
 let characterLoadToken=0;
+let selectedCharacterStyle='neutral';
 
-function characterStyle(){const select=document.getElementById('character-style');return CHARACTER_STYLES.includes(select.value)?select.value:'neutral'}
-function setCharacterStyle(style){const select=document.getElementById('character-style');select.value=CHARACTER_STYLES.includes(style)?style:'neutral'}
+function characterStyle(){return CHARACTER_STYLES.includes(selectedCharacterStyle)?selectedCharacterStyle:'neutral'}
+function setCharacterStyle(style){selectedCharacterStyle=CHARACTER_STYLES.includes(style)?style:'neutral'}
 
 /** Infer appearance only from clear profile signals; otherwise stay genderless. */
 function inferCharacterStyle(user){
@@ -34,6 +35,90 @@ function applyInferredCharacterStyle(user){
 }
 
 function characterSeed(login){return[...String(login||'dev')].reduce((n,c)=>(n*31+c.charCodeAt(0))>>>0,0)}
+function pickTrait(seed,list){return list[(seed>>>0)%list.length]}
+
+function composeCharacterTraits(data,kind,now=Date.now()){
+ const user=data.user||{};
+ const repos=data.original||[];
+ const langs=data.languages||[];
+ const lang=data.lang;
+ const top=data.top;
+ const seed=characterSeed(user.login);
+ const year=new Date(user.created_at).getUTCFullYear();
+ const years=Math.max(1,new Date().getUTCFullYear()-(Number.isFinite(year)?year:new Date().getUTCFullYear()));
+ const recent=repos.filter(r=>!r.archived&&Number.isFinite(Date.parse(r.pushed_at))&&now-Date.parse(r.pushed_at)>=0&&now-Date.parse(r.pushed_at)<90*86400000).length;
+ const stars=Number(data.stars)||0;
+ const followers=Number(user.followers)||0;
+ const bag=[];
+
+ if(lang){
+  const langTraits={
+   JavaScript:['جادوی DOM','وب‌باز شب‌بیدار','رابط‌ساز'],
+   TypeScript:['تایپ‌باز دقیق','معمار تایپ‌ها','خطایاب سخت‌گیر'],
+   Python:['جادوگر اسکریپت','کاشف داده','پایتون‌نویس آزاد'],
+   Go:['ساده‌نویس سریع','نگهبان سرویس','گوفر مصمم'],
+   Rust:['دقت‌طلب بی‌رحم','حافظه‌بان','کامپایل‌چَمپ'],
+   Swift:['سازندهٔ لمسی','اپ‌نویس اپل','تجربه‌ساز جیبی'],
+   Kotlin:['حلّال اندروید','کاتلین‌نویس','اپ‌ساز چابک'],
+   Java:['پایه‌گذار محکم','ماشین پایدار','معمار کلاسیک'],
+   Dockerfile:['محیط‌ساز','کپسول‌چی ران‌تایم','کشتی‌بان کانتینر'],
+   Shell:['اتوماسیون‌چی','چسب ابزارها','اسکریپت‌باز شب'],
+   HTML:['ساختارنویس','اسکلت‌ساز وب'],
+   CSS:['استایل‌پرداز','جزئیات‌دوست'],
+   PHP:['وب‌پشت‌صحنه','سرورنویس کهنه‌کار'],
+   Ruby:['ظریف‌نویس','خوانایی‌دوست'],
+   C:['نزدیک‌به‌فلز','کنترل‌طلب'],
+   'C++':['قدرت‌طلب دقیق','موتورنویس'],
+   'C#':['سیستم‌ساز قابل‌اتکا'],
+   Dart:['اپ‌نویس همه‌جا','فلوترباز'],
+   Vue:['کامپوننت‌چین','رابط‌ساز ماژولار']
+  };
+  bag.push(pickTrait(seed,(langTraits[lang]||[lang+' در خونش'])));
+ }else if(langs.length){
+  bag.push(pickTrait(seed,['چندنوازی کد',langs[0][0]+' · شروع داستان','جعبه ابزار باز']));
+ }else{
+  bag.push(pickTrait(seed,['فصل اول هنوز بازه','ایده قبل از زبان','آزمایشگاه شخصی']));
+ }
+
+ if(top?.name){
+  bag.push(pickTrait(seed>>2,['امضای «'+top.name+'»','اثر انگشت: '+top.name,'قهرمان صحنه: '+top.name]));
+ }else if(repos.length===1){
+  bag.push(pickTrait(seed>>2,['تک‌پروژهٔ ویژه','یک شعله، یک داستان','اولین مخزن، اولین امضا']));
+ }else if(repos.length){
+  bag.push(pickTrait(seed>>2,[repos.length+' آزمایشگاه باز','کارگاه '+repos.length+' پروژه‌ای','سازندهٔ چندمسیره']));
+ }else{
+  bag.push(pickTrait(seed>>2,['صفحهٔ سفید شجاع','commit بعدی مال توئه','هنوز فصل مقدمه']));
+ }
+
+ if(recent>=5)bag.push(pickTrait(seed>>4,['نبض فعال ۹۰روزه','در حال ساختنِ همین الان','دست گرم، مخزن زنده']));
+ else if(recent>=1)bag.push(pickTrait(seed>>4,['هنوز وسط ماجرا','به‌روزرسانی تازه','شعله خاموش نشده']));
+ else bag.push(pickTrait(seed>>4,['در حال شارژ ایده‌ها','وقفهٔ خلاق',years+' سال مسیر باز']));
+
+ if(stars>=50)bag.push(pickTrait(seed>>5,['ستاره‌جمع‌کن','ایده‌های دیده‌شده',stars+' ستاره در کارنامه']));
+ else if(followers>=20)bag.push(pickTrait(seed>>5,['دنبال‌شونده',followers+' شاهد مسیر','صدا در اکوسیستم']));
+ else if(user.bio)bag.push(pickTrait(seed>>5,['بیو پُر از ساختن','داستان روی پروفایل','هویتِ نوشته‌شده']));
+ else{
+  const vibe={
+   maker:['سازندهٔ کنجکاو','جعبه ابزار شخصی','از هیچ تا چیزی'],
+   web:['معمار تجربه', 'پیکسل‌دوست','رابط در خونش'],
+   data:['کاوشگر الگو','نقشه‌کش داده','کنجکاوِ عدد'],
+   mobile:['دنیای جیبی','لمس‌محور','اپ در دست'],
+   game:['جهان‌ساز','پیکسل‌باز','داستان‌باز تعاملی'],
+   systems:['نگهبان سیستم','ابزارساز زیرپوست','زیرساخت‌دوست']
+  };
+  bag.push(pickTrait(seed>>5,vibe[kind]||vibe.maker));
+ }
+
+ if(Number.isFinite(year)&&years>=3)bag.push(pickTrait(seed>>6,['از '+year+' تا امروز','کهنه‌کار صبور',years+' سال خط‌به‌خط']));
+
+ const unique=[];
+ for(const t of bag){
+  if(t&&!unique.includes(t))unique.push(t);
+  if(unique.length===4)break;
+ }
+ while(unique.length<3)unique.push(pickTrait(seed+unique.length,['کنجکاوِ تمام‌وقت','سازندهٔ روز ۲۵۶','داستانِ ناتمامِ قشنگ']));
+ return unique.slice(0,4);
+}
 
 function characterProfile(data,now=Date.now()){
  const repos=data.original;const topics=repos.flatMap(r=>Array.isArray(r.topics)?r.topics:[]);const corpus=topics.join(' ').toLowerCase();const lang=data.lang;
@@ -43,8 +128,8 @@ function characterProfile(data,now=Date.now()){
  else if(/gamedev|game-development|unity|unreal|godot/.test(corpus)){kind='game';label='WORLD BUILDER';title='جهان‌ساز';hue=230;reason='موضوع‌های مرتبط با ساخت بازی در پروژه‌ها دیده می‌شوند.'}
  else if(['JavaScript','TypeScript','CSS','HTML','Vue','Svelte'].includes(lang)){kind='web';label='INTERFACE ARCHITECT';title='معمار رابط‌ها';hue=0;reason='زبان غالب مخزن‌های غیرفورک به ساخت تجربه‌های وب مرتبط است.'}
  else if(['Go','Rust','C','C++','Java','C#','PHP','Ruby','Shell'].includes(lang)){kind='systems';label='SYSTEM GUARDIAN';title='نگهبان سیستم‌ها';hue=125;reason='از زبان غالب مخزن‌های غیرفورک و دنیای ابزارها و سیستم‌ها الهام گرفته است.'}
- const recent=repos.filter(r=>!r.archived&&Number.isFinite(Date.parse(r.pushed_at))&&now-Date.parse(r.pushed_at)>=0&&now-Date.parse(r.pushed_at)<90*86400000).length;
- const traits=[data.languages.length+' زبان',repos.length+' پروژهٔ مستقل'];if(recent)traits.push(recent+' به‌روزرسانی در ۹۰ روز');else traits.push('ماجراجویی ادامه داره');
+ else if(lang==='Dockerfile'){kind='systems';label='RUNTIME CAPTAIN';title='کشتی‌بان اجرا';hue=125;reason='از Dockerfile و دنیای محیط اجرا الهام گرفته است.'}
+ const traits=composeCharacterTraits(data,kind,now);
  const seed=characterSeed(data.user.login);
  return {kind,label,title,hue,reason,traits,serial:seed.toString(16).toUpperCase().padStart(8,'0'),seed};
 }
@@ -52,7 +137,7 @@ function characterProfile(data,now=Date.now()){
 function characterAssetPath(style,kind){
  const pack=CHARACTER_PACK[style]||CHARACTER_PACK.neutral;
  const file=pack[kind]||pack.maker||'neutral.png';
- return 'characters/'+file;
+ return 'characters/'+file+'?v=cutout';
 }
 
 /** Build a unique free AI URL (Pollinations). Used as optional upgrade; local pack is the reliable default. */
@@ -76,12 +161,48 @@ function liveAiCharacterUrl(data,style){
   gender,
   'wearing vibrant lime-green fleece hoodie',
   props,
-  'soft cinematic studio lighting, solid dark olive background',
+  'soft cinematic lighting, isolated cutout, transparent background, no backdrop, no studio set',
   'no text, no watermark, no logo'
  ].join(', ');
  const seed=(p.seed^({neutral:0,feminine:101,masculine:202}[style]||0)^(data.aiNonce||0))>>>0;
  return 'https://image.pollinations.ai/prompt/'+encodeURIComponent(prompt)+
-  '?width=768&height=768&seed='+seed+'&nologo=true&enhance=true&model=flux';
+  '?width=768&height=768&seed='+seed+'&nologo=true&enhance=true&model=flux&transparent=true';
+}
+
+function isolateCharacter(img){
+ try{
+  const w=img.naturalWidth,h=img.naturalHeight;
+  if(!w||!h)return null;
+  const canvas=document.createElement('canvas');
+  canvas.width=w;canvas.height=h;
+  const ctx=canvas.getContext('2d',{willReadFrequently:true});
+  ctx.drawImage(img,0,0);
+  const image=ctx.getImageData(0,0,w,h);
+  const data=image.data;
+  const pix=(x,y)=>(y*w+x)*4;
+  const cornerAlpha=(data[pix(2,2)+3]+data[pix(w-3,2)+3]+data[pix(2,h-3)+3]+data[pix(w-3,h-3)+3])/4;
+  if(cornerAlpha<80)return null;
+  const samples=[pix(8,8),pix(w-9,8),pix(8,h-9),pix(w-9,h-9)];
+  let br=0,bg=0,bb=0;
+  samples.forEach(i=>{br+=data[i];bg+=data[i+1];bb+=data[i+2]});
+  br/=4;bg/=4;bb/=4;
+  const hard=11;
+  const seen=new Uint8Array(w*h);
+  const stack=[2,2,w-3,2,2,h-3,w-3,h-3];
+  const dist2=(i)=>{const dr=data[i]-br,dg=data[i+1]-bg,db=data[i+2]-bb;return dr*dr+dg*dg+db*db};
+  while(stack.length){
+   const y=stack.pop(),x=stack.pop();
+   if(x<0||y<0||x>=w||y>=h)continue;
+   const p=y*w+x;
+   if(seen[p])continue;
+   if(dist2(pix(x,y))>=hard*hard)continue;
+   seen[p]=1;
+   data[pix(x,y)+3]=0;
+   stack.push(x+1,y,x-1,y,x,y+1,x,y-1);
+  }
+  ctx.putImageData(image,0,0);
+  return canvas.toDataURL('image/png');
+ }catch{return null}
 }
 
 function setCharacterImage(img,sources,onReady){
@@ -96,9 +217,15 @@ function setCharacterImage(img,sources,onReady){
   if(i>=sources.length){stage?.classList.remove('is-building');onReady?.(false);return}
   const src=sources[i++];
   const my=++attempt;
-  img.onload=()=>{if(token!==characterLoadToken||my!==attempt)return;clear();stage?.classList.remove('is-building');img.dataset.src=src;onReady?.(true,src)};
+  img.onload=()=>{
+   if(token!==characterLoadToken||my!==attempt)return;
+   const cut=isolateCharacter(img);
+   if(cut){clear();img.src=cut;return}
+   clear();stage?.classList.remove('is-building');img.dataset.src=src;onReady?.(true,img.src)
+  };
   img.onerror=()=>{if(my===attempt)tryNext()};
   if(/pollinations\.ai/.test(src))timer=setTimeout(()=>{if(my===attempt)tryNext()},8000);
+  img.crossOrigin='anonymous';
   img.src=src;
  };
  tryNext();
@@ -129,15 +256,9 @@ function renderCharacter(data,{preferLiveAi=false}={}){
 
  document.getElementById('character-class').textContent=p.label;
  document.getElementById('character-code').textContent='#'+p.serial;
- document.getElementById('character-reason').textContent=
-  p.title+' — '+p.reason+
-  ' کاراکتر به‌صورت خودکار از تیپ پروژه‌ها و پروفایل ساخته می‌شود (مجموعهٔ AI با چند تیپ مختلف). اگر جنسیت از بیو مشخص نباشد، ربات بدون جنسیت می‌ماند.';
  const traits=document.getElementById('character-traits');
  traits.replaceChildren();
  p.traits.forEach(t=>{const span=document.createElement('span');span.textContent=t;traits.append(span)});
- const variant=document.createElement('span');
- variant.textContent='تیپ '+p.kind;
- traits.append(variant);
 
  const motion=matchMedia('(prefers-reduced-motion: reduce)');
  if(!motion.matches){
@@ -167,27 +288,8 @@ async function drawCharacter(ctx,data,x,y,size){
 }
 
 document.addEventListener('DOMContentLoaded',()=>{
- const select=document.getElementById('character-style');
  const requestedStyle=new URLSearchParams(location.search).get('style');
- if(CHARACTER_STYLES.includes(requestedStyle)){select.value=requestedStyle;lockCharacterStyleFromUrl=true}
-
- select.addEventListener('change',()=>{
-  if(!current)return;
-  renderCharacter(current);
-  document.getElementById('qr').innerHTML=makeQR().createSvgTag({cellSize:2,margin:0,scalable:true});
-  if(!current.demo)history.replaceState(null,'',cardUrl());
- });
-
- const rebuild=document.getElementById('rebuild-character');
- if(rebuild){
-  rebuild.addEventListener('click',()=>{
-   if(!current)return;
-   current.aiNonce=((current.aiNonce||0)+9973)>>>0;
-   renderCharacter(current,{preferLiveAi:true});
-   document.getElementById('qr').innerHTML=makeQR().createSvgTag({cellSize:2,margin:0,scalable:true});
-   document.getElementById('action-status').textContent='در حال ساخت کاراکتر با AI رایگان… اگر در دسترس نباشد همان نسخهٔ محلی می‌ماند.';
-  });
- }
+ if(CHARACTER_STYLES.includes(requestedStyle)){setCharacterStyle(requestedStyle);lockCharacterStyleFromUrl=true}
 
  const card=document.getElementById('dev-card');
  const motion=matchMedia('(prefers-reduced-motion: reduce)');
