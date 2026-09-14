@@ -57,7 +57,7 @@ export function createWorkspace({db,profileService,fetcher=fetch,now=Date.now,im
    if(!env.APP_ORIGIN&&!['localhost','127.0.0.1'].includes(url.hostname))throw fail('آدرس اصلی سرویس تنظیم نشده است.',503);
    if(request.method==='POST'&&(request.headers.get('origin')!==origin||!request.headers.get('content-type')?.startsWith('application/json')))throw fail('درخواست معتبر نیست.',403);
    if(!['GET','POST'].includes(request.method))return json({message:'روش درخواست مجاز نیست.'},405);
-   if(path==='/api/config'&&request.method==='GET')return json({loginReady:!!(env.GITHUB_CLIENT_ID&&env.GITHUB_CLIENT_SECRET&&env.SESSION_SECRET),aiReady:!!env.GEMINI_API_KEY,imageReady:!!(env.POLLINATIONS_API_KEY&&images)});
+   if(path==='/api/config'&&request.method==='GET')return json({loginReady:!!(env.GITHUB_CLIENT_ID&&env.GITHUB_CLIENT_SECRET&&env.SESSION_SECRET),aiReady:!!env.GEMINI_API_KEY,imageReady:!!(env.GEMINI_API_KEY&&images)});
    if(path==='/auth/github'&&request.method==='GET'){
     if(!env.GITHUB_CLIENT_ID||!env.GITHUB_CLIENT_SECRET||!env.SESSION_SECRET) return redirect('/?auth_error=not_configured');
     const state=randomToken(),verifier=randomToken();
@@ -109,15 +109,17 @@ export function createWorkspace({db,profileService,fetcher=fetch,now=Date.now,im
    }
    if(path==='/api/me/ai'&&request.method==='POST')return json(await ai(user,env));
    if(path==='/api/me/image'&&request.method==='POST'){
-    if(!env.POLLINATIONS_API_KEY||!images)throw fail('تولید تصویر فعال نیست؛ کاراکتر آماده روی کارت قرار دارد.',503);
+    if(!env.GEMINI_API_KEY||!images)throw fail('تولید تصویر فعال نیست؛ کاراکتر آماده روی کارت قرار دارد.',503);
     await once('image:'+user.id,async()=>{
      const prior=await first('SELECT saved FROM reports WHERE key=?','image:'+user.id);if(prior&&now()-prior.saved<86400000)return;
      await reserve('image:'+user.id,300000);
      const report=await ai(user,env);if(!report.imagePrompt)throw fail('توضیح تصویر تولید نشد.',502);
-     const r=await fetcher('https://gen.pollinations.ai/image/'+encodeURIComponent(report.imagePrompt+' No text. No watermark. Genderless robot, no portrait of a real person.')+'?model=flux&width=1024&height=1024&seed='+user.id,{headers:{Authorization:'Bearer '+env.POLLINATIONS_API_KEY},signal:AbortSignal.timeout(60000)});
-     if(!r.ok||!/^image\/(png|jpeg|webp)/.test(r.headers.get('content-type')||''))throw fail('سرویس تصویر پاسخ نداد؛ کاراکتر فعلی محفوظ است.',503);
-     const bytes=await r.arrayBuffer();if(bytes.byteLength>8*1024*1024)throw fail('اندازهٔ تصویر بیش از حد است.',502);
-     await images.put('character-'+user.id,bytes,r.headers.get('content-type'));
+     const imageResponse=await fetcher('https://generativelanguage.googleapis.com/v1beta/models/'+encodeURIComponent(env.GEMINI_IMAGE_MODEL||'gemini-3.1-flash-image')+':generateContent',{method:'POST',headers:{'Content-Type':'application/json','x-goog-api-key':env.GEMINI_API_KEY},body:JSON.stringify({contents:[{parts:[{text:report.imagePrompt+' Create one polished square 3D collectible character image. No text, no watermark, no real-person likeness.'}]}],generationConfig:{responseModalities:['IMAGE']}}),signal:AbortSignal.timeout(60000)});
+     if(!imageResponse.ok)throw fail('سهمیهٔ تولید تصویر Gemini در دسترس نیست؛ کاراکتر آماده روی کارت باقی ماند.',503);
+     const imageData=await imageResponse.json(),part=imageData.candidates?.[0]?.content?.parts?.find(p=>p.inlineData?.data);
+     if(!part)throw fail('سرویس تصویر پاسخ تصویری نداد؛ کاراکتر آماده روی کارت باقی ماند.',503);
+     const mime=part.inlineData.mimeType||'image/png',bytes=Uint8Array.from(atob(part.inlineData.data),c=>c.charCodeAt(0));if(bytes.byteLength>8*1024*1024)throw fail('اندازهٔ تصویر بیش از حد است.',502);
+     await images.put('character-'+user.id,bytes,mime);
      await run('INSERT INTO reports(key,value,saved) VALUES(?,?,?) ON CONFLICT(key) DO UPDATE SET saved=excluded.saved','image:'+user.id,'{}',now());
     });return json({url:'/api/me/image'});
    }
