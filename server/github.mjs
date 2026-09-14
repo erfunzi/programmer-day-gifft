@@ -22,7 +22,7 @@ export function createGithubService({cache,fetcher=fetch,now=Date.now}){
  }
  function decodeReadme(raw){
   if(!raw||typeof raw.content!=='string')return '';
-  try{return atob(raw.content.replace(/\s/g,''))}catch{return ''}
+  try{return new TextDecoder().decode(Uint8Array.from(atob(raw.content.replace(/\s/g,'')),c=>c.charCodeAt(0)))}catch{return ''}
  }
  function cleanReadme(text,max=1800){
   return String(text||'').replace(/```[\s\S]*?```/g,' ').replace(/<[^>]*>/g,' ').replace(/https?:\/\/\S+/g,' ').replace(/[#*_>`~]/g,' ').replace(/\s+/g,' ').trim().slice(0,max)
@@ -35,7 +35,7 @@ export function createGithubService({cache,fetcher=fetch,now=Date.now}){
    if(page===1&&raw.public_repos===0)break;
    const batch=await upstream('/users/'+username+'/repos?type=owner&sort=updated&per_page=100&page='+page,token);
    if(!Array.isArray(batch))throw new UpstreamError('upstream',502);
-   repos.push(...batch.filter(r=>!r.private).map(r=>pick(r,['name','language','stargazers_count','fork','archived','pushed_at','topics'])));
+   repos.push(...batch.filter(r=>!r.private).map(r=>pick(r,['name','description','language','stargazers_count','fork','archived','pushed_at','created_at','topics'])));
    if(batch.length<100)break;
   }
   const selected=[...repos].filter(r=>!r.fork&&!r.archived).sort((a,b)=>(b.stargazers_count||0)-(a.stargazers_count||0)).slice(0,3);
@@ -50,7 +50,7 @@ export function createGithubService({cache,fetcher=fetch,now=Date.now}){
   if(request.method!=='GET')return json({error:'method_not_allowed'},405,{Allow:'GET'});
   const match=/^\/api\/github\/([a-zA-Z\d-]+)$/.exec(url.pathname);
   if(!match||!validUsername(match[1])||url.search)return json({error:'invalid_request',message:'آیدی معتبر گیت‌هاب وارد کن.'},400);
-  const username=match[1].toLowerCase(),key='profile-v2:'+username;
+  const username=match[1].toLowerCase(),key='profile-v3:'+username;
   const cached=await get(key),age=cached?now()-cached.savedAt:Infinity;
   if(cached&&age>=0&&age<(cached.error?600000:FRESH_MS))return cached.error?json({error:cached.error,message:messages[cached.error]},cached.status):json({...cached.data,fromCache:true,stale:false});
   const stale=()=>cached?.data&&age>=0&&age<STALE_MS?json({...cached.data,fromCache:true,stale:true}):null;

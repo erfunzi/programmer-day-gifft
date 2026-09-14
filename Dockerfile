@@ -4,6 +4,7 @@ COPY package*.json ./
 RUN npm ci
 COPY scripts ./scripts
 COPY server ./server
+COPY drizzle ./drizzle
 COPY dist ./dist
 RUN npm run build
 
@@ -12,5 +13,6 @@ WORKDIR /app
 ENV PORT=80 CACHE_DIR=/app/.cache
 COPY --from=build /app/dist/client ./dist
 COPY server ./server
+COPY drizzle ./drizzle
 EXPOSE 80
 CMD ["node", "server/node.mjs"]

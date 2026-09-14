@@ -16,4 +16,5 @@ for(const entry of await readdir('dist',{withFileTypes:true})){
 }
 await build({entryPoints:['server/worker.mjs'],outfile:'dist/server/index.js',bundle:true,format:'esm',platform:'browser',target:'es2022'});
 await mkdir('dist/.openai',{recursive:true});
+await cp('drizzle','dist/.openai/drizzle',{recursive:true});
 try{await writeFile('dist/.openai/hosting.json',await readFile('.openai/hosting.json'))}catch(e){if(e.code!=='ENOENT')throw e}
