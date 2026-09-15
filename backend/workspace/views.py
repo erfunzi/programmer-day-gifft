@@ -746,8 +746,24 @@ def github_callback(request):
         },
         timeout=20,
     )
-    access = response.json().get("access_token")
+    payload = {}
+    try:
+        payload = response.json()
+    except ValueError:
+        payload = {}
+    access = payload.get("access_token")
     if not access:
+        # Never log secrets; GitHub error codes are enough to diagnose misconfig.
+        print(
+            "github_oauth_exchange_failed",
+            {
+                "status": response.status_code,
+                "error": payload.get("error"),
+                "error_description": payload.get("error_description"),
+                "client_id": os.getenv("GITHUB_CLIENT_ID"),
+            },
+            flush=True,
+        )
         return HttpResponseRedirect("/?auth_error=exchange")
     info = github("/user", access)
     user, _ = UserProfile.objects.get_or_create(

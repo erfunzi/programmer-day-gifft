@@ -69,7 +69,7 @@ export default function App() {
     not_configured: "ورود GitHub هنوز تنظیم نشده است.",
     state: "درخواست ورود منقضی یا نامعتبر بود. دوباره وارد شو.",
     cancelled: "ورود تکمیل نشد. هر وقت خواستی دوباره امتحان کن.",
-    exchange: "ارتباط ورود با GitHub کامل نشد. دوباره امتحان کن.",
+    exchange: "ارتباط ورود با GitHub کامل نشد. Client ID و Client Secret اپ OAuth را دوباره چک کن.",
   };
   // Logged-in users never see the GitHub login entry again until logout/expiry.
   const showEntry =
