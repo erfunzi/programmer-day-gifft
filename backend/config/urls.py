@@ -11,6 +11,9 @@ urlpatterns = [
     path("api/me/time/stop", views.time_stop),
     path("api/me/timezone", views.timezone),
     path("api/me/share", views.share),
+    path("api/me/telegram", views.telegram_status),
+    path("api/me/telegram/link", views.telegram_link),
+    path("api/me/telegram/publish", views.telegram_publish),
     path("api/me/ai", views.ai),
     path("api/me/image", views.image),
     path("api/cards/<str:login>", views.card),
@@ -18,4 +21,5 @@ urlpatterns = [
     path("auth/github", views.github_login),
     path("auth/github/callback", views.github_callback),
     path("auth/logout", views.logout),
+    path("telegram/webhook", views.telegram_webhook),
 ]

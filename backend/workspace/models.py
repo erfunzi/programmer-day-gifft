@@ -52,3 +52,20 @@ class GeneratedImage(models.Model):
     user = models.OneToOneField(UserProfile, primary_key=True, on_delete=models.CASCADE)
     mime_type = models.CharField(max_length=100)
     body = models.BinaryField()
+
+
+class TelegramLink(models.Model):
+    token = models.CharField(max_length=96, primary_key=True)
+    user = models.ForeignKey(UserProfile, on_delete=models.CASCADE)
+    telegram_id = models.BigIntegerField(null=True, blank=True, unique=True)
+    username = models.CharField(max_length=255, blank=True)
+    expires = models.BigIntegerField()
+
+
+class TelegramPublication(models.Model):
+    user = models.OneToOneField(UserProfile, primary_key=True, on_delete=models.CASCADE)
+    chat_id = models.CharField(max_length=255)
+    message_id = models.BigIntegerField()
+    telegram_id = models.BigIntegerField(null=True, blank=True)
+    theme = models.CharField(max_length=40, default="aurora-mint")
+    created = models.BigIntegerField()

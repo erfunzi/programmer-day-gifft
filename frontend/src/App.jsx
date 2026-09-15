@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "./lib/api";
 import { sample } from "./lib/sample";
@@ -6,15 +6,28 @@ import { Entry } from "./components/Entry";
 import { DeveloperCard } from "./components/DeveloperCard";
 import { Reports } from "./components/Reports";
 import { Timer } from "./components/Timer";
+import { ThemePicker } from "./components/ThemePicker";
+import { DEFAULT_THEME, getTheme } from "./lib/themes";
 import { Button } from "./components/ui/button";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "./components/ui/tabs";
 export default function App() {
   const client = useQueryClient(),
     [demo, setDemo] = useState(false),
-    [imageVersion, setImageVersion] = useState(0);
-  const params = new URLSearchParams(location.search),
-    requested = params.get("u"),
+    [imageVersion, setImageVersion] = useState(0),
+    params = new URLSearchParams(location.search),
+    [theme, setTheme] = useState(() => {
+      const fromURL = new URLSearchParams(location.search).get("theme");
+      return getTheme(fromURL || localStorage.getItem("developer-card-theme") || DEFAULT_THEME).id;
+    });
+  const requested = params.get("u"),
     visitor = !!requested;
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme;
+    localStorage.setItem("developer-card-theme", theme);
+    const next = new URL(location.href);
+    next.searchParams.set("theme", theme);
+    history.replaceState(null, "", next);
+  }, [theme]);
   const config = useQuery({
     queryKey: ["config"],
     queryFn: () => api("/api/config"),
@@ -143,6 +156,7 @@ export default function App() {
                 </Button>
               </div>
             )}
+            <ThemePicker value={theme} onChange={setTheme} />
             <Tabs defaultValue="card" dir="rtl">
               <TabsList aria-label="بخش‌های پروفایل">
                 <TabsTrigger value="card">کارت و معرفی</TabsTrigger>
@@ -160,6 +174,7 @@ export default function App() {
                   visitor={visitor}
                   account={account}
                   holiday={holiday}
+                  theme={theme}
                   imageVersion={imageVersion}
                   onPublished={(published) =>
                     client.setQueryData(["session"], (old) => ({

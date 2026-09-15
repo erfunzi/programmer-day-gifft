@@ -2,6 +2,7 @@ import base64
 import hashlib
 import json
 import os
+import re
 import secrets
 import time as clock
 from datetime import datetime, timedelta
@@ -108,7 +109,7 @@ def api(view):
         try:
             if request.method not in ("GET", "POST"):
                 return json_error("روش درخواست مجاز نیست.", 405)
-            mutations = {"time_start", "time_stop", "timezone", "share", "ai", "logout"}
+            mutations = {"time_start", "time_stop", "timezone", "share", "ai", "logout", "telegram_link", "telegram_publish"}
             if view.__name__ in mutations and request.method != "POST":
                 return json_error("روش درخواست مجاز نیست.", 405)
             if request.method == "POST":
@@ -436,6 +437,8 @@ def share(request):
     if not user:
         return json_error("برای ادامه با GitHub وارد شو.", 401)
     publish = bool(payload(request).get("publish"))
+    requested_theme = str(payload(request).get("theme", "aurora-mint"))
+    theme = requested_theme if re.fullmatch(r"[a-z0-9-]{2,40}", requested_theme) else "aurora-mint"
     if publish:
         source = profile_data(user)
         card = {"user": source["user"], "repos": source["repos"]}
@@ -445,8 +448,81 @@ def share(request):
         UserProfile.objects.filter(pk=user.id).update(published=False)
         user.published = False
     return JsonResponse(
-        {"url": f"{settings.APP_ORIGIN}/?u={user.login}", "published": user.published}
+        {
+            "url": f"{settings.APP_ORIGIN}/?u={user.login}&theme={theme}",
+            "published": user.published,
+        }
     )
+
+
+@api
+def telegram_status(request):
+    user = session_user(request)
+    if not user:
+        return json_error("برای ادامه با GitHub وارد شو.", 401)
+    from .telegram import channel_url, configured, member_status
+    link = user.telegramlink_set.filter(telegram_id__isnull=False).first()
+    status = member_status(link.telegram_id) if link else None
+    return JsonResponse(
+        {
+            "configured": configured(),
+            "linked": bool(link),
+            "joined": status in {"creator", "administrator", "member", "restricted"},
+            "required": os.getenv("TELEGRAM_REQUIRE_JOIN", "false").lower() == "true",
+            "channelUrl": channel_url(),
+            "username": link.username if link else "",
+        }
+    )
+
+
+@api
+@csrf_exempt
+def telegram_link(request):
+    user = session_user(request)
+    if not user:
+        return json_error("برای ادامه با GitHub وارد شو.", 401)
+    from .telegram import channel_url, create_link
+    link = create_link(user)
+    if not link:
+        return json_error("اتصال تلگرام هنوز تنظیم نشده است.", 503)
+    return JsonResponse({"url": link, "channelUrl": channel_url()})
+
+
+@api
+@csrf_exempt
+def telegram_publish(request):
+    user = session_user(request)
+    if not user:
+        return json_error("برای ادامه با GitHub وارد شو.", 401)
+    from .telegram import publish
+    theme = str(payload(request).get("theme", "aurora-mint"))
+    if not re.fullmatch(r"[a-z0-9-]{2,40}", theme):
+        theme = "aurora-mint"
+    try:
+        result = publish(user, theme, refresh=True)
+    except requests.RequestException:
+        return json_error("انتشار در کانال تلگرام انجام نشد.", 503)
+    except RuntimeError:
+        return json_error("تلگرام هنوز تنظیم نشده است.", 503)
+    if not result and os.getenv("TELEGRAM_REQUIRE_JOIN", "false").lower() == "true":
+        return json_error("ابتدا حساب تلگرام را وصل کن و در کانال عضو شو.", 403)
+    return JsonResponse({"published": bool(result), "messageId": result.get("message_id") if result else None})
+
+
+@csrf_exempt
+def telegram_webhook(request):
+    if request.method != "POST":
+        return json_error("روش درخواست مجاز نیست.", 405)
+    expected = os.getenv("TELEGRAM_WEBHOOK_SECRET")
+    if not expected or request.headers.get("X-Telegram-Bot-Api-Secret-Token") != expected:
+        return json_error("درخواست معتبر نیست.", 403)
+    try:
+        update = json.loads(request.body or "{}")
+        from .telegram import handle_update
+        handle_update(update)
+    except (json.JSONDecodeError, requests.RequestException, RuntimeError):
+        return json_error("رویداد تلگرام پردازش نشد.", 400)
+    return JsonResponse({"ok": True})
 
 
 def generate_ai(user):
@@ -681,6 +757,14 @@ def github_callback(request):
         token=protect(access),
         expires=now_ms() + 604800000,
     )
+    user._access = access
+    # Publishing is best-effort: a Telegram outage must never prevent GitHub login.
+    try:
+        from .telegram import publish
+
+        publish(user)
+    except Exception:
+        pass
     return cookie(HttpResponseRedirect("/"), "dc_session", session)
 
 

@@ -35,6 +35,14 @@
 
 تصمیم‌های زیرساختی از لایهٔ نمایش جدا هستند؛ بنابراین تغییر به React و Django ظاهر کارت، متن‌ها و تجربهٔ فعلی را تغییر نمی‌دهد.
 
+## انتشار در کانال تلگرام
+
+پروژه می‌تواند بعد از ورود GitHub یک پست تصویری از کارت را در کانال `lyrooDev` منتشر کند. کپشن با HTML تلگرام ساخته می‌شود و از تیتر، لینک، بولد، ایتالیک، کد، نقل‌قول، جدول متنی با `<pre>` و مجموعهٔ شناسه‌های Custom Emoji مخصوص همین کانال پشتیبانی می‌کند.
+
+برای فعال‌سازی، ربات را با دسترسی انتشار و حذف پیام به کانال اضافه کن و این مقادیر را در `.env` بگذار: `TELEGRAM_BOT_TOKEN`، `TELEGRAM_BOT_USERNAME`، `TELEGRAM_CHANNEL_ID` (مثلاً `@lyrooDev`)، `TELEGRAM_CHANNEL_URL` و `TELEGRAM_WEBHOOK_SECRET`. بعد از قرار گرفتن سایت روی HTTPS، وبهوک را با دستور `python manage.py set_telegram_webhook` ثبت کن.
+
+تلگرام هویت یک کاربر GitHub را به‌صورت خودکار نمی‌داند. برای همین، داخل کارت دکمهٔ اتصال تلگرام ساخته می‌شود؛ کاربر از طریق deep link ربات را باز می‌کند و سپس عضویت او به حساب GitHub وصل می‌شود. با `TELEGRAM_REQUIRE_JOIN=true` انتشار تا زمان اتصال و عضویت متوقف می‌ماند و اگر کاربر بعداً کانال را ترک کند، رویداد `chat_member` به وبهوک می‌رسد و پست او حذف می‌شود. این رفتار فقط برای حساب‌هایی قابل اعمال است که اتصال تلگرام را کامل کرده‌اند.
+
 ---
 
 # Developer Card · Studio
@@ -73,3 +81,11 @@ The project is maintained as a monorepo:
 - `docker-compose.yml`: separate frontend, backend, and PostgreSQL services using one shared `.env` file.
 
 The infrastructure layers are separated from the presentation layer, so the React and Django migration keeps the existing card design and user experience intact.
+
+## Telegram channel publishing
+
+The project can publish a visual card to the `lyrooDev` channel after GitHub sign-in. Captions use Telegram HTML and support headings, links, bold, italics, code, blockquotes, table-like layouts rendered with `<pre>`, and the channel’s built-in Custom Emoji ID set.
+
+Add the bot to the channel as an administrator with permission to post and delete messages. Configure `TELEGRAM_BOT_TOKEN`, `TELEGRAM_BOT_USERNAME`, `TELEGRAM_CHANNEL_ID`, `TELEGRAM_CHANNEL_URL`, and a random `TELEGRAM_WEBHOOK_SECRET`, then register the HTTPS webhook with `python manage.py set_telegram_webhook`.
+
+Telegram cannot know which GitHub account belongs to a channel member by itself. The card therefore provides a Telegram deep-link connection flow. With `TELEGRAM_REQUIRE_JOIN=true`, publishing requires the linked Telegram account to be a channel member; when a linked member leaves, the `chat_member` webhook removes that member’s post.

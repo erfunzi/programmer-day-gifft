@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Download, Share2 } from "lucide-react";
 import QRCode from "qrcode";
 import { Button } from "./ui/button";
@@ -14,18 +14,32 @@ export function DeveloperCard({
   visitor,
   account,
   holiday,
+  theme,
   imageVersion,
   onPublished,
 }) {
   const cardRef = useRef(null),
     data = useMemo(() => analyze(profile), [profile]);
+  const queryClient = useQueryClient();
   const character = useMemo(() => characterProfile(data), [data]);
   const [status, setStatus] = useState(""),
     [qr, setQR] = useState(""),
     [image, setImage] = useState("");
   const localImage = characterAssetPath("neutral", character.kind),
     u = data.user;
-  const shareURL = `${location.origin}/?u=${encodeURIComponent(u.login)}`;
+  const telegram = useQuery({
+    queryKey: ["telegram-status"],
+    queryFn: () => api("/api/me/telegram"),
+    enabled: !!account && !visitor && !demo,
+  });
+  const telegramLink = useMutation({
+    mutationFn: () => api("/api/me/telegram/link", {}),
+  });
+  const telegramPublish = useMutation({
+    mutationFn: () => api("/api/me/telegram/publish", { theme }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["telegram-status"] }),
+  });
+  const shareURL = `${location.origin}/?u=${encodeURIComponent(u.login)}&theme=${encodeURIComponent(theme)}`;
   useEffect(() => {
     let active = true;
     QRCode.toDataURL(
@@ -65,15 +79,17 @@ export function DeveloperCard({
         onPublished(false);
         return "کارت دیگر برای مهمان‌ها قابل‌مشاهده نیست.";
       }
+      let publishedURL = shareURL;
       if (!visitor) {
-        await api("/api/me/share", { publish: true });
+        const shared = await api("/api/me/share", { publish: true, theme });
+        publishedURL = shared.url || shareURL;
         onPublished(true);
       }
       try {
-        await navigator.clipboard.writeText(shareURL);
+        await navigator.clipboard.writeText(publishedURL);
         return "لینک کارت کپی شد. زمان کار و گزارش خصوصی هستند.";
       } catch {
-        return "لینک کارت: " + shareURL;
+        return "لینک کارت: " + publishedURL;
       }
     },
     onSuccess: setStatus,
@@ -115,6 +131,7 @@ export function DeveloperCard({
         dir="ltr"
         data-archetype={character.kind}
         data-character-style="neutral"
+        data-theme={theme}
         style={{
           "--character-hue": character.hue + "deg",
           "--character-tilt": ((character.seed % 7) - 3) * 0.35 + "deg",
@@ -276,6 +293,62 @@ export function DeveloperCard({
             چاپ
           </Button>
         </div>
+        {!visitor && !demo && telegram.data?.configured && (
+          <div className="telegram-bridge" dir="rtl">
+            <div>
+              <strong>کارتت در کانال lyrooDev</strong>
+              <p>
+                {telegram.data.linked
+                  ? telegram.data.joined
+                    ? "عضویت تأیید شد؛ کارت با همین تم در کانال منتشر می‌شود."
+                    : "برای ماندن کارت، بعد از اتصال در کانال عضو بمان."
+                  : "حسابت را به تلگرام وصل کن تا انتشار و وضعیت عضویت قابل‌پیگیری باشد."}
+              </p>
+            </div>
+            <div className="telegram-bridge-actions">
+              {!telegram.data.linked && !telegramLink.data && (
+                <Button
+                  variant="secondary"
+                  disabled={telegramLink.isPending}
+                  onClick={() => telegramLink.mutate()}
+                >
+                  اتصال تلگرام
+                </Button>
+              )}
+              {telegramLink.data?.url && (
+                <Button asChild>
+                  <a href={telegramLink.data.url} target="_blank" rel="noreferrer">
+                    باز کردن ربات تلگرام ↗
+                  </a>
+                </Button>
+              )}
+              {telegramLink.data?.url && !telegram.data.linked && (
+                <Button
+                  variant="ghost"
+                  onClick={() => queryClient.invalidateQueries({ queryKey: ["telegram-status"] })}
+                >
+                  بررسی اتصال
+                </Button>
+              )}
+              {telegram.data.channelUrl && (
+                <Button variant="ghost" asChild>
+                  <a href={telegram.data.channelUrl} target="_blank" rel="noreferrer">
+                    {telegram.data.joined ? "مشاهدهٔ کانال" : "عضویت در کانال ↗"}
+                  </a>
+                </Button>
+              )}
+              {telegram.data.linked && (
+                <Button
+                  variant="secondary"
+                  disabled={telegramPublish.isPending}
+                  onClick={() => telegramPublish.mutate()}
+                >
+                  انتشار با این تم
+                </Button>
+              )}
+            </div>
+          </div>
+        )}
         {!visitor && (
           <p className="hint">
             فقط کارت و اطلاعات عمومی منتشر می‌شود؛ گزارش‌ها و زمان کار خصوصی

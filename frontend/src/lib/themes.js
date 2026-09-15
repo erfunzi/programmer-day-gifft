@@ -1,0 +1,50 @@
+export const THEMES = [
+  {
+    id: "aurora-mint",
+    name: "شفق نعنایی",
+    english: "Aurora Mint",
+    description: "مینیمال، آرام و آشنا",
+    colors: ["#111a16", "#baff70", "#7de7c0"],
+  },
+  {
+    id: "neon-arcade",
+    name: "آرکید نئونی",
+    english: "Neon Arcade",
+    description: "سایبرپانک، پرانرژی و بازی‌وار",
+    colors: ["#120f24", "#ff5bd6", "#55e7ff"],
+  },
+  {
+    id: "solar-forge",
+    name: "کورهٔ خورشیدی",
+    english: "Solar Forge",
+    description: "گرم، جسور و صنعتی",
+    colors: ["#21130e", "#ffc857", "#ff745c"],
+  },
+  {
+    id: "deep-ocean",
+    name: "اعماق اقیانوس",
+    english: "Deep Ocean",
+    description: "خنک، دقیق و اکتشافی",
+    colors: ["#071923", "#55d6ff", "#6d8cff"],
+  },
+  {
+    id: "violet-orbit",
+    name: "مدار بنفش",
+    english: "Violet Orbit",
+    description: "فانتزی، فضایی و آینده‌نگر",
+    colors: ["#171022", "#c596ff", "#ff8ecb"],
+  },
+  {
+    id: "paper-circuit",
+    name: "مدار کاغذی",
+    english: "Paper Circuit",
+    description: "روشن، editorial و متفاوت",
+    colors: ["#f2eee4", "#1d6b62", "#d45b3d"],
+  },
+];
+
+export const DEFAULT_THEME = THEMES[0].id;
+
+export function getTheme(id) {
+  return THEMES.find((theme) => theme.id === id) || THEMES[0];
+}

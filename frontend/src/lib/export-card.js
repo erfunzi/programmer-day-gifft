@@ -34,10 +34,13 @@ export async function exportCard(card, login) {
       await img.decode();
     }
     const fontEmbedCSS = await getFontEmbedCSS(clone);
+    const exportBackground = getComputedStyle(card)
+      .getPropertyValue("--theme-export-bg")
+      .trim() || "#111c17";
     const blob = await toBlob(clone, {
       pixelRatio: 3,
       fontEmbedCSS,
-      backgroundColor: "#111c17",
+      backgroundColor: exportBackground,
       width: clone.offsetWidth,
       height: clone.offsetHeight,
       style: { transform: "none", animation: "none", transition: "none" },
