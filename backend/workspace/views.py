@@ -180,6 +180,15 @@ def cookie(response, name, value, max_age=604800):
     return response
 
 
+def clear_cookie(response, name):
+    response.delete_cookie(
+        name,
+        path="/",
+        samesite="Lax",
+    )
+    return response
+
+
 def profile_data(user):
     cached = Report.objects.filter(key=f"profile:{user.id}").first()
     if cached and now_ms() - cached.saved < 3600000:
@@ -775,5 +784,5 @@ def logout(request):
     if raw:
         UserSession.objects.filter(id=digest(raw)).delete()
     response = JsonResponse({})
-    response.delete_cookie("dc_session")
+    clear_cookie(response, "dc_session")
     return response

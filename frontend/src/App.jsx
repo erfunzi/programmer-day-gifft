@@ -37,6 +37,7 @@ export default function App() {
     queryFn: () => api("/api/me"),
   });
   const account = session.data?.user;
+  const sessionPending = session.isLoading || session.isFetching;
   const profile = useQuery({
     queryKey: ["profile", requested, account?.id],
     queryFn: () =>
@@ -70,6 +71,11 @@ export default function App() {
     cancelled: "ورود تکمیل نشد. هر وقت خواستی دوباره امتحان کن.",
     exchange: "ارتباط ورود با GitHub کامل نشد. دوباره امتحان کن.",
   };
+  // Logged-in users never see the GitHub login entry again until logout/expiry.
+  const showEntry =
+    !demo && !visitor && !account && !sessionPending && !data;
+  const openingWorkspace =
+    !demo && !visitor && !!account && !data && !profile.error;
   return (
     <>
       <div className="ambient" aria-hidden="true" />
@@ -95,7 +101,7 @@ export default function App() {
         </div>
       </header>
       <main>
-        {!data && (
+        {showEntry && (
           <Entry
             onDemo={() => setDemo(true)}
             status={
@@ -107,11 +113,18 @@ export default function App() {
             }
           />
         )}
+        {(sessionPending || openingWorkspace) && (
+          <p role="status" className="hint">
+            {sessionPending
+              ? "در حال بررسی وضعیت ورود…"
+              : "وارد شدی؛ کارت و گزارش‌ها آماده‌ می‌شوند…"}
+          </p>
+        )}
         <p role="status" className="hint">
           {profile.error?.message ||
             session.error?.message ||
             logout.error?.message ||
-            (profile.isFetching ? "در حال خواندن پروفایل GitHub…" : "")}
+            (profile.isFetching && data ? "در حال به‌روز کردن پروفایل GitHub…" : "")}
         </p>
         {data && (
           <section id="workspace">
@@ -127,9 +140,14 @@ export default function App() {
                   زمان، فعالیت و کارهایی که ساخته‌ای؛ کنار هم.
                 </p>
               </div>
-              {(demo || visitor) && (
+              {demo && (
+                <Button variant="ghost" onClick={() => setDemo(false)}>
+                  خروج از نمونه ←
+                </Button>
+              )}
+              {visitor && (
                 <Button variant="ghost" asChild>
-                  <a href="/">بازگشت به ورود ↗</a>
+                  <a href="/">{account ? "کارت خودم ↗" : "بازگشت ↗"}</a>
                 </Button>
               )}
             </div>
@@ -149,10 +167,18 @@ export default function App() {
               <div className="visitor-invite">
                 <div>
                   <strong>این کارتِ یک توسعه‌دهنده است.</strong>
-                  <p>داستان خودت را هم بساز؛ با حساب GitHub وارد شو.</p>
+                  <p>
+                    {account
+                      ? "برای دیدن کارت و گزارش خودت، برو به فضای کار شخصی‌ات."
+                      : "داستان خودت را هم بساز؛ با حساب GitHub وارد شو."}
+                  </p>
                 </div>
                 <Button asChild>
-                  <a href="/auth/github">کارت خودم را بساز</a>
+                  {account ? (
+                    <a href="/">برو به کارت خودم ↗</a>
+                  ) : (
+                    <a href="/auth/github">کارت خودم را بساز</a>
+                  )}
                 </Button>
               </div>
             )}
