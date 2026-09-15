@@ -1,5 +1,5 @@
 import { toBlob, getFontEmbedCSS } from "html-to-image";
-export async function exportCard(card, login) {
+export async function exportCard(card, login, { download = true } = {}) {
   await document.fonts.ready;
   await Promise.all(
     [...card.querySelectorAll("img")].map((img) => img.decode()),
@@ -46,12 +46,15 @@ export async function exportCard(card, login) {
       style: { transform: "none", animation: "none", transition: "none" },
     });
     if (!blob) throw Error("خروجی تصویر ساخته نشد.");
-    const url = URL.createObjectURL(blob),
-      link = document.createElement("a");
-    link.href = url;
-    link.download = `developer-card-${login}.png`;
-    link.click();
-    setTimeout(() => URL.revokeObjectURL(url), 10000);
+    if (download) {
+      const url = URL.createObjectURL(blob),
+        link = document.createElement("a");
+      link.href = url;
+      link.download = `developer-card-${login}.png`;
+      link.click();
+      setTimeout(() => URL.revokeObjectURL(url), 10000);
+    }
+    return blob;
   } finally {
     container.remove();
   }

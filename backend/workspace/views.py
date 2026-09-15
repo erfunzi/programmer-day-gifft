@@ -115,10 +115,17 @@ def api(view):
             if request.method == "POST":
                 if (
                     request.headers.get("Origin") != settings.APP_ORIGIN
-                    or request.content_type != "application/json"
+                    or (
+                        request.content_type != "application/json"
+                        and not (
+                            view.__name__ == "telegram_publish"
+                            and request.content_type.startswith("multipart/form-data")
+                        )
+                    )
                 ):
                     return json_error("درخواست معتبر نیست.", 403)
-                if len(request.body) > 4096:
+                max_body = 12 * 1024 * 1024 if view.__name__ == "telegram_publish" else 4096
+                if len(request.body) > max_body:
                     return json_error("درخواست بیش از حد بزرگ است.", 413)
             response = view(request, *args, **kwargs)
             response["Cache-Control"] = "no-store"
@@ -525,14 +532,25 @@ def telegram_publish(request):
     if not user:
         return json_error("برای ادامه با GitHub وارد شو.", 401)
     from .telegram import publish
-    theme = str(payload(request).get("theme", "aurora-mint"))
+    form_data = request.POST if request.content_type.startswith("multipart/form-data") else payload(request)
+    theme = str(form_data.get("theme", "aurora-mint"))
     if not re.fullmatch(r"[a-z0-9-]{2,40}", theme):
         theme = "aurora-mint"
+    card_image = request.FILES.get("image")
+    image_bytes = None
+    image_mime = "image/png"
+    if card_image:
+        if card_image.size > 10 * 1024 * 1024 or card_image.content_type not in {"image/png", "image/jpeg", "image/webp"}:
+            return json_error("تصویر کارت معتبر نیست.", 413)
+        image_bytes = card_image.read()
+        image_mime = card_image.content_type
     try:
-        result = publish(user, theme, refresh=True)
+        result = publish(user, theme, refresh=True, card_image=(image_bytes, image_mime) if image_bytes else None)
     except requests.RequestException:
         return json_error("انتشار در کانال تلگرام انجام نشد.", 503)
-    except RuntimeError:
+    except RuntimeError as exc:
+        if "final rendered" in str(exc):
+            return json_error("تصویر نهایی کارت دریافت نشد.", 422)
         return json_error("تلگرام هنوز تنظیم نشده است.", 503)
     if not result and os.getenv("TELEGRAM_REQUIRE_JOIN", "false").lower() == "true":
         return json_error("ابتدا حساب تلگرام را وصل کن و در کانال عضو شو.", 403)
@@ -814,13 +832,6 @@ def github_callback(request):
         expires=now_ms() + 604800000,
     )
     user._access = access
-    # Publishing is best-effort: a Telegram outage must never prevent GitHub login.
-    try:
-        from .telegram import publish
-
-        publish(user)
-    except Exception:
-        pass
     return cookie(HttpResponseRedirect("/"), "dc_session", session)
 
 

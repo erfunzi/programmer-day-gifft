@@ -21,6 +21,24 @@ export async function api(path, data) {
   }
   return body;
 }
+export async function upload(path, formData) {
+  const response = await fetch(path, {
+    method: "POST",
+    credentials: "same-origin",
+    body: formData,
+    signal: AbortSignal.timeout(200000),
+  });
+  let body;
+  try { body = await response.json(); }
+  catch { throw Error("پاسخ سرور کامل نبود؛ دوباره امتحان کن."); }
+  if (!response.ok) {
+    const error = Error(body.message || "درخواست انجام نشد.");
+    error.status = response.status;
+    error.retryAfter = Number(response.headers.get("Retry-After")) || null;
+    throw error;
+  }
+  return body;
+}
 export const number = (n) => Number(n || 0).toLocaleString("fa-IR");
 export const hours = (n) =>
   Number(n / 3600000).toLocaleString("fa-IR", { maximumFractionDigits: 1 }) +

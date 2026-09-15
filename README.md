@@ -1,91 +1,212 @@
-# کارت توسعه‌دهنده · Studio
+# Developer Card · Studio
 
-## دربارهٔ پروژه
+**A personal workspace for builders.**  
+Sign in with GitHub, get a living developer card, track your craft, and share a story that feels like you — not a resume template.
 
-«کارت توسعه‌دهنده» یک فضای شخصی برای معرفی پروژه‌ها، گزارش فعالیت GitHub و ثبت زمان کار است. هر فرد با ورود رسمی GitHub، کارت اختصاصی خود را می‌سازد. روز برنامه‌نویس، پیام ویژهٔ همان روز روی کارت نمایش داده می‌شود.
-
-این تجربه، بیو، زبان‌های برنامه‌نویسی، پروژه‌ها، موضوع‌ها، فعالیت اخیر، ستاره‌ها، README پروفایل و README پروژه‌های شاخص را بررسی می‌کند و از آن‌ها برای ساخت یک روایت شخصی، آمار زنده و یک کاراکتر سه‌بعدی اختصاصی الهام می‌گیرد.
-
-## قابلیت‌ها
-
-- کارت تبریک منحصربه‌فرد برای هر پروفایل عمومی GitHub
-- تحلیل پروژه‌ها، زبان‌ها، موضوع‌ها و READMEهای عمومی
-- ساخت کاراکترهای متنوع برای حوزه‌های وب، داده، موبایل، بازی، سیستم و متن‌باز
-- کاراکتر خنثی با ابزارها و موضوع‌های الهام‌گرفته از پروژه‌ها
-- مقایسهٔ فعالیت سالانه و تایمر ثبت زمان کار
-- حرکت سه‌بعدی پیش‌فرض و طراحی مناسب برای اشتراک‌گذاری
-- لینک اختصاصی و QR Code برای فرستادن کارت به دیگران
-- دعوت مستقیم مهمان برای ساخت کارت خودش
-- دانلود تصویر با همان ظاهر کارت نمایش‌داده‌شده
-- نمایش لینک سازنده برای حمایت، دنبال‌کردن و ستاره‌دادن به پروژه
-
-## هدف
-
-این پروژه برای قدردانی از آدم‌هایی ساخته شده که پشت هر commit، ایده، کنجکاوی و داستانی انسانی دارند.
-
-روز برنامه‌نویس مبارک. ✳
-
-## معماری فعلی
-
-پروژه به‌صورت یک مونو‌ریپو نگهداری می‌شود:
-
-- `frontend/`: کامپوننت‌های React، Tailwind، shadcn/Radix و React Query با همان ظاهر کارت، سرو‌شده با Nginx.
-- `backend/`: API و احراز هویت Django با PostgreSQL.
-- `docker-compose.yml`: سه سرویس مستقل frontend، backend و PostgreSQL با یک فایل `.env` مشترک.
-
-تصمیم‌های زیرساختی از لایهٔ نمایش جدا هستند؛ بنابراین تغییر به React و Django ظاهر کارت، متن‌ها و تجربهٔ فعلی را تغییر نمی‌دهد.
-
-## انتشار در کانال تلگرام
-
-پروژه می‌تواند بعد از ورود GitHub یک پست تصویری از کارت را در کانال `lyrooDev` منتشر کند. کپشن با HTML تلگرام ساخته می‌شود و از تیتر، لینک، بولد، ایتالیک، کد، نقل‌قول، جدول متنی با `<pre>` و مجموعهٔ شناسه‌های Custom Emoji مخصوص همین کانال پشتیبانی می‌کند.
-
-برای فعال‌سازی، ربات را با دسترسی انتشار و حذف پیام به کانال اضافه کن و این مقادیر را در `.env` بگذار: `TELEGRAM_BOT_TOKEN`، `TELEGRAM_BOT_USERNAME`، `TELEGRAM_CHANNEL_ID` (مثلاً `@lyrooDev`)، `TELEGRAM_CHANNEL_URL` و `TELEGRAM_WEBHOOK_SECRET`. بعد از قرار گرفتن سایت روی HTTPS، وبهوک را با دستور `python manage.py set_telegram_webhook` ثبت کن.
-
-تلگرام هویت یک کاربر GitHub را به‌صورت خودکار نمی‌داند. برای همین، داخل کارت دکمهٔ اتصال تلگرام ساخته می‌شود؛ کاربر از طریق deep link ربات را باز می‌کند و سپس عضویت او به حساب GitHub وصل می‌شود. با `TELEGRAM_REQUIRE_JOIN=true` انتشار تا زمان اتصال و عضویت متوقف می‌ماند و اگر کاربر بعداً کانال را ترک کند، رویداد `chat_member` به وبهوک می‌رسد و پست او حذف می‌شود. این رفتار فقط برای حساب‌هایی قابل اعمال است که اتصال تلگرام را کامل کرده‌اند.
+Live: [developer.lyroo.space](https://developer.lyroo.space)
 
 ---
 
-# Developer Card · Studio
+## Why it exists
 
-## About
+Behind every commit there is a person: curiosity, taste, late nights, small wins, and unfinished ideas that eventually ship.
 
-Developer Card is a year-round workspace for public GitHub portfolios, activity reports and tracked work time. Developers sign in with GitHub to create and optionally share their card, with a special greeting on Programmer’s Day.
+Developer Card turns public GitHub signal into something human — a portrait of how you build. On Programmer’s Day (day 256), the card carries an extra celebration. The rest of the year, it stays useful as a quiet studio for progress, time, and shareable presence.
 
-The experience analyzes the profile bio, programming languages, repositories, topics, recent activity, stars, profile README, and selected project READMEs. These signals inspire a personal story, live statistics, and a custom 3D developer character.
+---
 
-## Features
+## What you get
 
-- A unique celebration card for every public GitHub profile
-- Analysis of public repositories, languages, topics, and README files
-- Multiple character archetypes for web, data, mobile, game, systems, and open-source builders
-- Gender-neutral characters inspired by project themes and tools
-- Yearly activity comparison and a persistent work timer
-- Default 3D motion with a design made for sharing
-- A dedicated share link and QR Code for every card
-- A direct invitation for visitors to create their own card
-- Image export that preserves the card shown on screen
-- A creator link for following, supporting, and starring the project
+- **GitHub sign-in** — official OAuth, no passwords, no private-repo access
+- **Personal developer card** — name, craft, character, stats, and share link
+- **Theme studio** — curated visual themes for the card surface
+- **Game-style rating** — five clear 0–100 attributes that read at a glance
+- **Activity reports** — yearly comparison and progress context
+- **Work timer** — persistent time tracking for focused building
+- **AI insights** (optional) — grounded Gemini summaries from public profile evidence
+- **Character imagery** — archetype characters inspired by languages, topics, and projects
+- **PNG export** — download the card as shown on screen
+- **Visitor mode** — share `?u=username` so others can view and then build their own
+- **Telegram publishing** — optional channel posts with membership-aware lifecycle
 
-## Purpose
+---
 
-This project celebrates the humans behind every commit: their ideas, curiosity, craft, and stories.
+## Product principles
 
-Happy Programmer’s Day. ✳
+1. **Public signal only** — we never ask for private repository scopes.
+2. **Identity stays yours** — GitHub is the source of truth for login and profile.
+3. **Shareable by default** — every card can travel as a link, QR, image, or channel post.
+4. **Infrastructure stays invisible** — React, Django, and Postgres power the studio without changing the card’s voice.
 
-## Current architecture
+---
 
-The project is maintained as a monorepo:
+## Architecture
 
-- `frontend/`: React components with Tailwind, shadcn/Radix and React Query, preserving the card design and served by Nginx.
-- `backend/`: Django APIs and authentication backed by PostgreSQL.
-- `docker-compose.yml`: separate frontend, backend, and PostgreSQL services using one shared `.env` file.
+Monorepo layout:
 
-The infrastructure layers are separated from the presentation layer, so the React and Django migration keeps the existing card design and user experience intact.
+| Layer | Path | Role |
+| --- | --- | --- |
+| Frontend | `frontend/` | React + Vite + Tailwind + React Query, served by Nginx |
+| Backend | `backend/` | Django APIs, GitHub OAuth, sessions, AI, Telegram |
+| Data | PostgreSQL | Profiles, sessions, reports, timer, Telegram links |
+| Compose | `docker-compose.yml` | Production services with one shared `.env` |
+| Dev overlay | `docker-compose.dev.yml` | Hot reload for local work |
+
+```text
+Browser
+  └─ Nginx (frontend)
+       ├─ static React app
+       └─ /api /auth /telegram  →  Django (backend)  →  PostgreSQL
+                                              └─ GitHub / Gemini / Telegram APIs
+```
+
+---
+
+## Quick start (local)
+
+Requirements: Docker, Docker Compose, and a GitHub OAuth App.
+
+```bash
+cp .env.example .env
+# fill secrets in .env
+
+docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build
+```
+
+Then open the URL from `DEV_APP_ORIGIN` (default `http://localhost:8080`).
+
+### GitHub OAuth App
+
+Create an OAuth App and set:
+
+- **Homepage URL:** your local or production origin
+- **Authorization callback URL:**  
+  `https://your-domain/auth/github/callback`  
+  (local example: `http://localhost:8080/auth/github/callback`)
+
+Put `GITHUB_CLIENT_ID` and `GITHUB_CLIENT_SECRET` in `.env`.
+
+---
+
+## Production
+
+Production compose runs:
+
+- `frontend` on `127.0.0.1:${FRONTEND_PORT:-8080}`
+- `backend` (Gunicorn)
+- `postgres`
+
+Typical host setup: reverse-proxy `developer.lyroo.space` to the frontend port, terminate TLS at host Nginx, keep other sites untouched.
+
+```bash
+cd /opt/developer-card
+git pull
+docker compose up -d --build
+docker compose exec backend python manage.py migrate
+docker compose exec backend python manage.py set_telegram_webhook
+```
+
+Set `APP_ORIGIN=https://developer.lyroo.space` and `TRUST`/`DJANGO_ALLOWED_HOSTS` accordingly.
+
+---
+
+## Environment
+
+Copy `.env.example` → `.env`. Important keys:
+
+| Key | Purpose |
+| --- | --- |
+| `APP_ORIGIN` | Canonical HTTPS origin used for OAuth redirects and share links |
+| `DJANGO_SECRET_KEY` / `SESSION_SECRET` | Session crypto |
+| `GITHUB_CLIENT_ID` / `GITHUB_CLIENT_SECRET` | OAuth credentials (must match the same GitHub app) |
+| `GEMINI_API_KEY` | Optional AI + image generation |
+| `POSTGRES_*` | Database connection |
+| `FRONTEND_PORT` | Host port for the frontend container |
+| `TELEGRAM_BOT_TOKEN` | Bot API token |
+| `TELEGRAM_BOT_USERNAME` | Bot username for deep links |
+| `TELEGRAM_CHANNEL_ID` | Channel id or `@handle` |
+| `TELEGRAM_CHANNEL_URL` | Public channel URL |
+| `TELEGRAM_WEBHOOK_SECRET` | Shared secret for webhook verification |
+| `TELEGRAM_REQUIRE_JOIN` | Require linked membership before publishing |
+| `TELEGRAM_ADMIN_ID` | Numeric Telegram user id for backend error alerts |
+
+Never commit `.env`.
+
+---
 
 ## Telegram channel publishing
 
-The project can publish a visual card to the `lyrooDev` channel after GitHub sign-in. Captions use Telegram HTML and support headings, links, bold, italics, code, blockquotes, table-like layouts rendered with `<pre>`, and the channel’s built-in Custom Emoji ID set.
+Developer Card can publish a visual post to **lyrooDev** after GitHub sign-in.
 
-Add the bot to the channel as an administrator with permission to post and delete messages. Configure `TELEGRAM_BOT_TOKEN`, `TELEGRAM_BOT_USERNAME`, `TELEGRAM_CHANNEL_ID`, `TELEGRAM_CHANNEL_URL`, and a random `TELEGRAM_WEBHOOK_SECRET`, then register the HTTPS webhook with `python manage.py set_telegram_webhook`.
+### Capabilities
 
-Telegram cannot know which GitHub account belongs to a channel member by itself. The card therefore provides a Telegram deep-link connection flow. With `TELEGRAM_REQUIRE_JOIN=true`, publishing requires the linked Telegram account to be a channel member; when a linked member leaves, the `chat_member` webhook removes that member’s post.
+- HTML captions with bold, italic, links, code, blockquotes, and `<pre>` layouts
+- Channel custom emoji ids
+- Deep-link account linking (`/start link_…`)
+- Membership-aware publishing when `TELEGRAM_REQUIRE_JOIN=true`
+- Automatic post removal when a linked member leaves (`chat_member` webhook)
+- Bot `/start` and `/help` welcome flows
+- Admin alerts for backend failures to `TELEGRAM_ADMIN_ID`
+
+### Setup
+
+1. Add the bot to the channel as an administrator (post + delete).
+2. Fill Telegram variables in `.env`.
+3. Deploy on HTTPS.
+4. Register webhook + bot commands:
+
+```bash
+docker compose exec backend python manage.py set_telegram_webhook
+```
+
+Telegram cannot infer GitHub identity by itself. Users connect from the card UI, open the bot deep link, and keep channel membership if join-gated publishing is enabled.
+
+---
+
+## Scripts
+
+From the repo root:
+
+```bash
+npm run build          # frontend production build
+npm run test           # frontend tests
+npm run check:compose  # validate compose files
+```
+
+Backend tests (inside the backend environment):
+
+```bash
+docker compose exec backend python manage.py test
+```
+
+---
+
+## Privacy & trust
+
+- OAuth scope is limited to public profile reading (`read:user`)
+- Session cookies are HTTP-only and Secure in production
+- No private repository contents are requested
+- AI prompts are built from public profile evidence only
+- Telegram admin alerts exclude secrets
+
+---
+
+## Contributing shape
+
+Keep changes small and intentional:
+
+- Preserve the card’s visual language unless the task is design work
+- Prefer public, explainable signals over speculative traits
+- Treat Telegram publishing as best-effort — login must never fail because Telegram is down
+- Keep production compose safe to run beside existing host Nginx sites
+
+---
+
+## Credits
+
+Built with appreciation for the people who ship quietly and persistently.
+
+**Live studio:** [developer.lyroo.space](https://developer.lyroo.space)  
+**Creator:** [@erfunzi](https://github.com/erfunzi)
+
+Happy Programmer’s Day. Keep building. ✳

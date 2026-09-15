@@ -5,7 +5,7 @@ import re
 import requests
 from django.conf import settings
 
-from .models import GeneratedImage, TelegramLink, TelegramPublication
+from .models import TelegramLink, TelegramPublication
 from .views import now_ms, profile_data, token
 
 
@@ -90,7 +90,7 @@ def notify_admin(title, detail="", context=None):
     chat_id = admin_id()
     if not chat_id or not bot_token():
         return False
-    parts = [f"🚨 <b>{esc(title)}</b>"]
+    parts = [f"{premium_emoji('fire')} <b>{esc(title)}</b>"]
     if detail:
         parts.append(f"<pre>{esc(str(detail)[:3500])}</pre>")
     if context:
@@ -165,25 +165,25 @@ def render_caption(profile, theme):
         f"<code>stars      {sum(int(repo.get('stargazers_count', 0)) for repo in repos):,}</code>",
     ]
     projects = "\n".join(
-        f"▫️ <a href=\"https://github.com/{esc(user['login'])}/{esc(repo['name'])}\">{esc(repo['name'])}</a> · ⭐ {int(repo.get('stargazers_count', 0)):,}"
+        f"{premium_emoji('badge_alt')} <a href=\"https://github.com/{esc(user['login'])}/{esc(repo['name'])}\">{esc(repo['name'])}</a> · {premium_emoji('sparkle')} {int(repo.get('stargazers_count', 0)):,}"
         for repo in top
-    ) or "▫️ هنوز پروژهٔ عمومی برای نمایش پیدا نشد"
+    ) or f"{premium_emoji('badge_alt')} هنوز پروژهٔ عمومی برای نمایش پیدا نشد"
     app_url = f"{settings.APP_ORIGIN}/?u={esc(user['login'])}&theme={esc(theme)}"
     return (
-        f"{premium_emoji('sparkle')} <b>یک کارت تازه از کانال lyrooDev</b>\n\n"
+        f"{premium_emoji('sparkle')} <b>یک سازندهٔ تازه در lyrooDev</b>\n\n"
         f"{premium_emoji('person')} <b>{esc(user.get('name') or user['login'])}</b> · <code>@{esc(user['login'])}</code>\n"
         f"{premium_emoji('badge')} تم کارت: <i>{esc(theme)}</i>\n\n"
-        f"<blockquote>هر commit یک قدم است؛ اینجا تصویری کوتاه از مسیر ساختن این توسعه‌دهنده را می‌بینی.</blockquote>\n\n"
+        f"<blockquote>هر commit یک قدم است؛ این کارت، خلاصه‌ای از مسیر ساختن، ابزارها و پروژه‌های عمومی این توسعه‌دهنده است.</blockquote>\n\n"
         f"<pre>╭──────── developer stats ────────╮\n"
         + "\n".join(rows)
         + "\n╰────────────────────────────────╯</pre>\n\n"
         f"{premium_emoji('note')} <b>پروژه‌های شاخص</b>\n{projects}\n\n"
-        f"{premium_emoji('next')} <a href=\"{app_url}\">مشاهدهٔ کارت کامل و گزارش</a>\n"
+        f"{premium_emoji('next')} <a href=\"{app_url}\">کارت کامل را ببین و برای دوستت بفرست</a>\n"
         f"#developer_card #lyrooDev"
     )
 
 
-def publish(user, theme="aurora-mint", refresh=False):
+def publish(user, theme="aurora-mint", refresh=False, card_image=None):
     if not configured():
         return None
     if os.getenv("TELEGRAM_REQUIRE_JOIN", "false").lower() == "true":
@@ -196,13 +196,11 @@ def publish(user, theme="aurora-mint", refresh=False):
     if existing and refresh:
         delete_publication(user)
     profile = profile_data(user)
-    image = GeneratedImage.objects.filter(user=user).first()
     link = TelegramLink.objects.filter(user=user, telegram_id__isnull=False).first()
     caption = render_caption(profile, theme)
     markup = {
         "inline_keyboard": [
-            [{"text": "مشاهدهٔ کارت کامل ↗", "url": f"{settings.APP_ORIGIN}/?u={user.login}&theme={theme}"}],
-            [{"text": "عضویت در lyrooDev", "url": channel_url()}],
+            [{"text": "➡️  مشاهدهٔ کارت کامل", "url": f"{settings.APP_ORIGIN}/?u={user.login}&theme={theme}"}],
         ]
     }
     data = {
@@ -211,15 +209,14 @@ def publish(user, theme="aurora-mint", refresh=False):
         "parse_mode": "HTML",
         "reply_markup": __import__("json").dumps(markup),
     }
-    if image:
-        result = api_call(
-            "sendPhoto",
-            data=data,
-            files={"photo": (f"{user.login}.png", bytes(image.body), image.mime_type)},
-        )
-    else:
-        data["photo"] = user.avatar
-        result = api_call("sendPhoto", data=data)
+    if not card_image:
+        raise RuntimeError("The final rendered card image is required")
+    raw, mime = card_image
+    result = api_call(
+        "sendPhoto",
+        data=data,
+        files={"photo": (f"developer-card-{user.login}.png", raw, mime)},
+    )
     TelegramPublication.objects.update_or_create(
         user=user,
         defaults={
@@ -295,7 +292,7 @@ def handle_update(update):
                         {
                             "chat_id": chat["id"],
                             "text": (
-                                f"{premium_emoji('badge')} اتصال <code>@{esc(user.login)}</code> انجام شد.\n"
+                                f"{premium_emoji('sparkle')} اتصال <code>@{esc(user.login)}</code> انجام شد.\n"
                                 f"حالا در <a href=\"{esc(channel_url())}\">{esc(channel_url())}</a> عضو بمان "
                                 f"تا کارتت در کانال باقی بماند."
                             ),

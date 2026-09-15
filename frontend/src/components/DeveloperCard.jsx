@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Download, Share2 } from "lucide-react";
 import QRCode from "qrcode";
 import { Button } from "./ui/button";
-import { api, number } from "../lib/api";
+import { api, number, upload } from "../lib/api";
 import { analyze } from "../lib/sample";
 import { characterProfile, characterAssetPath } from "../lib/character";
 import { exportCard } from "../lib/export-card";
@@ -20,6 +20,7 @@ export function DeveloperCard({
 }) {
   const cardRef = useRef(null),
     data = useMemo(() => analyze(profile), [profile]);
+  const telegramAutoPublished = useRef(false);
   const queryClient = useQueryClient();
   const character = useMemo(() => characterProfile(data), [data]);
   const [status, setStatus] = useState(""),
@@ -36,10 +37,37 @@ export function DeveloperCard({
     mutationFn: () => api("/api/me/telegram/link", {}),
   });
   const telegramPublish = useMutation({
-    mutationFn: () => api("/api/me/telegram/publish", { theme }),
+    mutationFn: async () => {
+      const card = await exportCard(cardRef.current, u.login, { download: false });
+      const form = new FormData();
+      form.append("theme", theme);
+      form.append("image", card, `developer-card-${u.login}.png`);
+      return upload("/api/me/telegram/publish", form);
+    },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["telegram-status"] }),
   });
   const shareURL = `${location.origin}/?u=${encodeURIComponent(u.login)}&theme=${encodeURIComponent(theme)}`;
+  useEffect(() => {
+    if (
+      !telegram.data?.configured ||
+      !account ||
+      visitor ||
+      demo ||
+      telegramAutoPublished.current
+    ) return;
+    telegramAutoPublished.current = true;
+    (async () => {
+      try {
+        const card = await exportCard(cardRef.current, u.login, { download: false });
+        const form = new FormData();
+        form.append("theme", theme);
+        form.append("image", card, `developer-card-${u.login}.png`);
+        await upload("/api/me/telegram/publish", form);
+      } catch {
+        // The card remains usable if Telegram is not linked or temporarily unavailable.
+      }
+    })();
+  }, [telegram.data?.configured, account, visitor, demo, theme, u.login]);
   useEffect(() => {
     let active = true;
     QRCode.toDataURL(
@@ -140,9 +168,14 @@ export function DeveloperCard({
       >
         <div className="card-top">
           <span>DEVELOPER CARD</span>
-          <span>
+          <span className="card-edition">
             {holiday ? "DAY 256" : new Date().getFullYear() + " EDITION"}
           </span>
+        </div>
+        <div className="rating-badge" aria-label={`امتیاز کلی ${data.rating.overall} از 100`}>
+          <span>OVERALL RATING</span>
+          <strong>{data.rating.overall}</strong>
+          <small>/100</small>
         </div>
         <div className="identity">
           <img
@@ -189,6 +222,14 @@ export function DeveloperCard({
         <div className="character-traits">
           {character.traits.map((t) => (
             <span key={t}>{t}</span>
+          ))}
+        </div>
+        <div className="rating-grid" aria-label="امتیازهای کارت">
+          {data.rating.fields.map((field) => (
+            <div className="rating-item" key={field.key} title={field.fa}>
+              <strong>{field.score}</strong>
+              <span>{field.label}</span>
+            </div>
           ))}
         </div>
         <div className="stats">
@@ -249,6 +290,23 @@ export function DeveloperCard({
             دیدن {data.top.name} در GitHub ↗
           </a>
         )}
+        <div className="rating-explainer">
+          <div className="rating-explainer-heading">
+            <div>
+              <span className="story-label">// DEVELOPER RATING</span>
+              <h3>امتیاز کلی <b>{data.rating.overall}</b><small>/100</small></h3>
+            </div>
+            <span className="hint">برداشت‌شده از داده‌های عمومی GitHub</span>
+          </div>
+          <div className="rating-bars">
+            {data.rating.fields.map((field) => (
+              <div className="rating-bar" key={field.key}>
+                <div><span>{field.fa}</span><b>{field.score}</b></div>
+                <i><i style={{ width: `${field.score}%` }} /></i>
+              </div>
+            ))}
+          </div>
+        </div>
         <div className="plain-guide">
           <h3>این عددها چه می‌گویند؟</h3>
           <p>
