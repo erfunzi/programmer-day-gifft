@@ -1,0 +1,30 @@
+import {test,expect} from '@playwright/test';
+test.beforeEach(async ({page})=>{
+ await page.route('**/api/config',r=>r.fulfill({json:{loginReady:true,aiReady:true,imageReady:true}}));
+ await page.route('**/api/me',r=>r.fulfill({json:{user:null}}));
+});
+test('React demo preserves card, tabs, timer and layout',async({page})=>{
+ const errors=[]; page.on('pageerror',e=>errors.push(e.message));
+ await page.goto('/');
+ await page.getByRole('button',{name:'دیدن نمونهٔ کارت و گزارش ←'}).click();
+ await expect(page.locator('#dev-card')).toBeVisible();
+ await expect(page.locator('#dev-card h2')).toHaveText('Alex Developer');
+ await page.getByRole('tab',{name:'گزارش پیشرفت'}).click();
+ await expect(page.getByRole('heading',{name:'مسیر امسال، کنار پارسال'})).toBeVisible();
+ await page.getByRole('tab',{name:'زمان کار'}).click();
+ await page.getByRole('button',{name:'شروع کار',exact:true}).click();
+ await expect(page.locator('#timer-clock')).not.toHaveText('00:00:00',{timeout:6000});
+ await page.getByRole('tab',{name:'کارت و معرفی'}).click();
+ await page.getByRole('tab',{name:'زمان کار'}).click();
+ await expect(page.getByRole('button',{name:'توقف و ثبت زمان'})).toBeVisible();
+ await page.getByRole('button',{name:'توقف و ثبت زمان'}).click();
+ expect(errors).toEqual([]);
+ expect(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBe(true);
+ await page.getByRole('tab',{name:'کارت و معرفی'}).click();
+ await page.screenshot({path:`test-results/card-${test.info().project.name}.png`,fullPage:true});
+ const download = page.waitForEvent('download');
+ await page.getByRole('button',{name:'دانلود کارت PNG'}).click();
+ const file = await download;
+ expect(file.suggestedFilename()).toBe('developer-card-alex-sample.png');
+ await file.saveAs(`test-results/export-${test.info().project.name}.png`);
+});

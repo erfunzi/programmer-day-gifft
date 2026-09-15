@@ -1,8 +1,8 @@
-# کارت توسعه‌دهنده؛ روز برنامه‌نویس
+# کارت توسعه‌دهنده · Studio
 
 ## دربارهٔ پروژه
 
-«کارت توسعه‌دهنده» یک تجربهٔ تعاملی برای تبریک روز برنامه‌نویس است. هر فرد با وارد کردن آیدی GitHub خود، یک کارت اختصاصی دریافت می‌کند که از اطلاعات عمومی همان پروفایل ساخته شده است.
+«کارت توسعه‌دهنده» یک فضای شخصی برای معرفی پروژه‌ها، گزارش فعالیت GitHub و ثبت زمان کار است. هر فرد با ورود رسمی GitHub، کارت اختصاصی خود را می‌سازد. روز برنامه‌نویس، پیام ویژهٔ همان روز روی کارت نمایش داده می‌شود.
 
 این تجربه، بیو، زبان‌های برنامه‌نویسی، پروژه‌ها، موضوع‌ها، فعالیت اخیر، ستاره‌ها، README پروفایل و README پروژه‌های شاخص را بررسی می‌کند و از آن‌ها برای ساخت یک روایت شخصی، آمار زنده و یک کاراکتر سه‌بعدی اختصاصی الهام می‌گیرد.
 
@@ -11,7 +11,8 @@
 - کارت تبریک منحصربه‌فرد برای هر پروفایل عمومی GitHub
 - تحلیل پروژه‌ها، زبان‌ها، موضوع‌ها و READMEهای عمومی
 - ساخت کاراکترهای متنوع برای حوزه‌های وب، داده، موبایل، بازی، سیستم و متن‌باز
-- انتخاب خودکار سبک کاراکتر بر اساس نشانه‌های روشن پروفایل؛ در حالت مبهم، ظاهر خنثی
+- کاراکتر خنثی با ابزارها و موضوع‌های الهام‌گرفته از پروژه‌ها
+- مقایسهٔ فعالیت سالانه و تایمر ثبت زمان کار
 - حرکت سه‌بعدی پیش‌فرض و طراحی مناسب برای اشتراک‌گذاری
 - لینک اختصاصی و QR Code برای فرستادن کارت به دیگران
 - دعوت مستقیم مهمان برای ساخت کارت خودش
@@ -24,13 +25,23 @@
 
 روز برنامه‌نویس مبارک. ✳
 
+## معماری فعلی
+
+پروژه به‌صورت یک مونو‌ریپو نگهداری می‌شود:
+
+- `frontend/`: کامپوننت‌های React، Tailwind، shadcn/Radix و React Query با همان ظاهر کارت، سرو‌شده با Nginx.
+- `backend/`: API و احراز هویت Django با PostgreSQL.
+- `docker-compose.yml`: سه سرویس مستقل frontend، backend و PostgreSQL با یک فایل `.env` مشترک.
+
+تصمیم‌های زیرساختی از لایهٔ نمایش جدا هستند؛ بنابراین تغییر به React و Django ظاهر کارت، متن‌ها و تجربهٔ فعلی را تغییر نمی‌دهد.
+
 ---
 
-# Developer Card · Programmer’s Day
+# Developer Card · Studio
 
 ## About
 
-Developer Card is an interactive Programmer’s Day celebration experience. Each person enters their GitHub username and receives a personalized card built from their public profile.
+Developer Card is a year-round workspace for public GitHub portfolios, activity reports and tracked work time. Developers sign in with GitHub to create and optionally share their card, with a special greeting on Programmer’s Day.
 
 The experience analyzes the profile bio, programming languages, repositories, topics, recent activity, stars, profile README, and selected project READMEs. These signals inspire a personal story, live statistics, and a custom 3D developer character.
 
@@ -39,7 +50,8 @@ The experience analyzes the profile bio, programming languages, repositories, to
 - A unique celebration card for every public GitHub profile
 - Analysis of public repositories, languages, topics, and README files
 - Multiple character archetypes for web, data, mobile, game, systems, and open-source builders
-- Automatic appearance style based on clear profile signals, with a neutral fallback when signals are ambiguous
+- Gender-neutral characters inspired by project themes and tools
+- Yearly activity comparison and a persistent work timer
 - Default 3D motion with a design made for sharing
 - A dedicated share link and QR Code for every card
 - A direct invitation for visitors to create their own card
@@ -51,3 +63,13 @@ The experience analyzes the profile bio, programming languages, repositories, to
 This project celebrates the humans behind every commit: their ideas, curiosity, craft, and stories.
 
 Happy Programmer’s Day. ✳
+
+## Current architecture
+
+The project is maintained as a monorepo:
+
+- `frontend/`: React components with Tailwind, shadcn/Radix and React Query, preserving the card design and served by Nginx.
+- `backend/`: Django APIs and authentication backed by PostgreSQL.
+- `docker-compose.yml`: separate frontend, backend, and PostgreSQL services using one shared `.env` file.
+
+The infrastructure layers are separated from the presentation layer, so the React and Django migration keeps the existing card design and user experience intact.

@@ -1,4 +1,8 @@
 work/
+.archive/
+frontend/dist/
+frontend/test-results/
+frontend/playwright-report/
 outputs/
 .sites-runtime/
 .openai/
@@ -11,6 +15,13 @@ outputs/
 .env.*
 !.env.example
 node_modules/
+frontend/node_modules/
+frontend/public/client/
+frontend/public/server/
+frontend/public/.openai/
+.pytest_cache/
+__pycache__/
+*.pyc
 .cache/
 dist/client/
 dist/server/

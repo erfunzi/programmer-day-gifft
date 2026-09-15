@@ -1,0 +1,23 @@
+@layer theme, base, components, utilities;
+@import "tailwindcss/theme.css" layer(theme);
+@import "tailwindcss/utilities.css" layer(utilities);
+@source '../';
+:root {
+  --background: #111513;
+  --foreground: #edf3e9;
+  --primary: #b5ff69;
+  --radius: 0.75rem;
+}
+.workspace-tabs button[data-state="active"] {
+  color: #b5ff69;
+  border-color: #b5ff69;
+}
+.workspace-panel[data-state="inactive"] {
+  display: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .auto-rotate {
+    animation: none !important;
+    transform: none !important;
+  }
+}

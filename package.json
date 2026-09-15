@@ -1,22 +1,10 @@
 {
-  "name": "developer-card",
+  "name": "developer-card-monorepo",
   "private": true,
-  "type": "module",
   "scripts": {
-    "start": "node server/node.mjs",
-    "dev": "node server/node.mjs",
-    "build": "node scripts/build.mjs",
-    "test": "node --test tests/*.test.mjs"
-  },
-  "engines": {
-    "node": ">=22"
-  },
-  "dependencies": {
-    "drizzle-orm": "^0.45.2",
-    "html-to-image": "1.11.13"
-  },
-  "devDependencies": {
-    "drizzle-kit": "^0.31.10",
-    "esbuild": "0.25.10"
+    "dev": "npm --prefix frontend run dev",
+    "build": "npm --prefix frontend run build",
+    "test": "npm --prefix frontend run test",
+    "check:compose": "docker compose -f docker-compose.yml -f docker-compose.dev.yml config --quiet"
   }
 }

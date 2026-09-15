@@ -1,16 +1,77 @@
 services:
-  web:
-    build: .
-    container_name: developer-card
-    ports:
-      - "127.0.0.1:8080:80"
+  postgres:
+    image: postgres:16-alpine
     restart: unless-stopped
     env_file: .env
     environment:
-      PORT: "80"
-      CACHE_DIR: /app/.cache
-      TRUST_PROXY: "true"
+      POSTGRES_DB: ${POSTGRES_DB:-developer_card}
+      POSTGRES_USER: ${POSTGRES_USER:-developer_card}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in the shared .env}
     volumes:
-      - github-cache:/app/.cache
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-developer_card} -d ${POSTGRES_DB:-developer_card}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build: ./backend
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: "5432"
+      DJANGO_SETTINGS_MODULE: config.settings.production
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  frontend:
+    build: ./frontend
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:${FRONTEND_PORT:-8080}:80"
+    depends_on:
+      - backend
+
+  redis:
+    image: redis:7-alpine
+    profiles: [jobs]
+    restart: unless-stopped
+    healthcheck:
+      test: [CMD, redis-cli, ping]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  celery:
+    build: ./backend
+    profiles: [jobs]
+    command: ["./entrypoint.sh", "worker"]
+    env_file: .env
+    environment:
+      POSTGRES_HOST: postgres
+      DJANGO_SETTINGS_MODULE: config.settings.production
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  celery-beat:
+    build: ./backend
+    profiles: [jobs]
+    command: ["./entrypoint.sh", "beat"]
+    env_file: .env
+    environment:
+      POSTGRES_HOST: postgres
+      DJANGO_SETTINGS_MODULE: config.settings.production
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
 volumes:
-  github-cache:
+  postgres-data:

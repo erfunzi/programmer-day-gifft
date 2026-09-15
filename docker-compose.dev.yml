@@ -1,0 +1,32 @@
+# Development overrides: hot reload, shared root .env, no automatic migrations.
+services:
+  backend:
+    command: ["./entrypoint.sh", "dev"]
+    environment:
+      DJANGO_SETTINGS_MODULE: config.settings.local
+      DEV_APP_ORIGIN: ${DEV_APP_ORIGIN:-http://localhost:8080}
+    volumes:
+      - ./backend:/app
+  celery:
+    environment:
+      DJANGO_SETTINGS_MODULE: config.settings.local
+    volumes:
+      - ./backend:/app
+  celery-beat:
+    environment:
+      DJANGO_SETTINGS_MODULE: config.settings.local
+    volumes:
+      - ./backend:/app
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.dev
+    command: ["npm", "run", "dev", "--", "--host", "0.0.0.0", "--port", "80"]
+    volumes:
+      - ./frontend:/app
+      - frontend_node_modules:/app/node_modules
+    environment:
+      NODE_ENV: development
+      BACKEND_URL: http://backend:8000
+volumes:
+  frontend_node_modules:

@@ -1,0 +1,96 @@
+import json
+from datetime import datetime, timezone
+from unittest.mock import patch
+from urllib.parse import parse_qs, urlparse
+
+from django.test import TestCase
+
+from workspace.models import Report, UserProfile, UserSession, WorkSession
+from workspace.views import digest, now_ms, protect, time_data
+
+
+class WorkspaceTests(TestCase):
+    def setUp(self):
+        self.user = UserProfile.objects.create(
+            id=1, login="developer", joined=now_ms() - 86400000
+        )
+        UserSession.objects.create(
+            id=digest("session"),
+            user=self.user,
+            token=protect("fake-access"),
+            expires=now_ms() + 60000,
+        )
+        self.client.cookies["dc_session"] = "session"
+
+    def post(self, path, data=None):
+        return self.client.post(
+            path,
+            json.dumps(data or {}),
+            content_type="application/json",
+            HTTP_ORIGIN="http://testserver",
+        )
+
+    def test_config_needs_no_schema_mutation(self):
+        with self.assertNumQueries(0):
+            self.assertEqual(self.client.get("/api/config").status_code, 200)
+
+    def test_csrf_and_methods(self):
+        self.assertEqual(self.client.get("/api/me/time/start").status_code, 405)
+        self.assertEqual(
+            self.client.post(
+                "/api/me/time/start", "{}", content_type="application/json"
+            ).status_code,
+            403,
+        )
+        self.client.cookies.clear()
+        self.assertEqual(self.post("/api/me/time/start").status_code, 401)
+
+    def test_timer_retries_and_stop_isolation(self):
+        first = self.post("/api/me/time/start").json()["active"]["id"]
+        self.assertEqual(first, self.post("/api/me/time/start").json()["active"]["id"])
+        self.post("/api/me/time/stop", {"id": first})
+        second = self.post("/api/me/time/start").json()["active"]["id"]
+        self.assertEqual(
+            second, self.post("/api/me/time/stop", {"id": first}).json()["active"]["id"]
+        )
+        other = UserProfile.objects.create(id=2, login="other", joined=now_ms())
+        WorkSession.objects.create(id="other-session", user=other, started=now_ms())
+        self.post("/api/me/time/stop", {"id": "other-session"})
+        self.assertIsNone(WorkSession.objects.get(pk="other-session").ended)
+
+    def test_public_card_excludes_readmes(self):
+        Report.objects.create(
+            key="profile:1",
+            saved=now_ms(),
+            value={
+                "user": {"login": "developer"},
+                "repos": [],
+                "profileReadme": "private context",
+                "projectReadmes": ["context"],
+            },
+        )
+        self.assertEqual(self.post("/api/me/share", {"publish": True}).status_code, 200)
+        data = self.client.get("/api/cards/developer").json()
+        self.assertNotIn("profileReadme", data)
+        self.post("/api/me/share", {"publish": False})
+        self.assertEqual(self.client.get("/api/cards/developer").status_code, 404)
+
+    def test_timer_midnight_dst_and_calendar_average(self):
+        self.user.timezone = "America/New_York"
+        self.user.joined = int(
+            datetime(2026, 3, 7, tzinfo=timezone.utc).timestamp() * 1000
+        )
+        start = int(datetime(2026, 3, 8, 5, tzinfo=timezone.utc).timestamp() * 1000)
+        end = int(datetime(2026, 3, 9, 4, tzinfo=timezone.utc).timestamp() * 1000)
+        WorkSession.objects.create(id="dst", user=self.user, started=start, ended=end)
+        with patch("workspace.views.now_ms", return_value=end):
+            data = time_data(self.user)
+        self.assertEqual(data["daily"]["2026-03-08"], 23 * 3600000)
+        self.assertEqual(data["elapsedDays"], 4)
+
+    @patch.dict("os.environ", {"GITHUB_CLIENT_ID": "test"})
+    def test_oauth_pkce_format(self):
+        query = parse_qs(urlparse(self.client.get("/auth/github")["Location"]).query)
+        challenge = query["code_challenge"][0]
+        self.assertEqual(len(challenge), 43)
+        self.assertNotIn("=", challenge)

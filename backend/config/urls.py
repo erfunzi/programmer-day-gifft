@@ -1,0 +1,21 @@
+from django.urls import path
+from workspace import views
+
+urlpatterns = [
+    path("api/config", views.config),
+    path("api/me", views.me),
+    path("api/me/profile", views.profile),
+    path("api/me/activity", views.activity),
+    path("api/me/time", views.time),
+    path("api/me/time/start", views.time_start),
+    path("api/me/time/stop", views.time_stop),
+    path("api/me/timezone", views.timezone),
+    path("api/me/share", views.share),
+    path("api/me/ai", views.ai),
+    path("api/me/image", views.image),
+    path("api/cards/<str:login>", views.card),
+    path("api/cards/<str:login>/image", views.card_image),
+    path("auth/github", views.github_login),
+    path("auth/github/callback", views.github_callback),
+    path("auth/logout", views.logout),
+]
