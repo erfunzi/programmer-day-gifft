@@ -41,6 +41,15 @@ def configured():
     return bool(os.getenv("TELEGRAM_BOT_TOKEN") and os.getenv("TELEGRAM_CHANNEL_ID"))
 
 
+def bot_token():
+    return os.getenv("TELEGRAM_BOT_TOKEN", "")
+
+
+def admin_id():
+    raw = os.getenv("TELEGRAM_ADMIN_ID", "").strip()
+    return int(raw) if raw.isdigit() else None
+
+
 def channel_id():
     return os.getenv("TELEGRAM_CHANNEL_ID", "@lyrooDev")
 
@@ -53,11 +62,12 @@ def bot_username():
     return os.getenv("TELEGRAM_BOT_USERNAME", "")
 
 
-def api_call(method, data=None, files=None, timeout=25):
-    if not configured():
-        raise RuntimeError("Telegram is not configured")
+def bot_call(method, data=None, files=None, timeout=25):
+    token = bot_token()
+    if not token:
+        raise RuntimeError("Telegram bot token is not configured")
     response = requests.post(
-        API.format(os.environ["TELEGRAM_BOT_TOKEN"]) + "/" + method,
+        API.format(token) + "/" + method,
         data=data,
         files=files,
         timeout=timeout,
@@ -67,6 +77,73 @@ def api_call(method, data=None, files=None, timeout=25):
     if not body.get("ok"):
         raise RuntimeError(body.get("description", "Telegram API failed"))
     return body.get("result")
+
+
+def api_call(method, data=None, files=None, timeout=25):
+    if not configured():
+        raise RuntimeError("Telegram is not configured")
+    return bot_call(method, data=data, files=files, timeout=timeout)
+
+
+def notify_admin(title, detail="", context=None):
+    """Best-effort alert to the configured Telegram admin chat."""
+    chat_id = admin_id()
+    if not chat_id or not bot_token():
+        return False
+    parts = [f"🚨 <b>{esc(title)}</b>"]
+    if detail:
+        parts.append(f"<pre>{esc(str(detail)[:3500])}</pre>")
+    if context:
+        parts.append(f"<code>{esc(str(context)[:800])}</code>")
+    try:
+        bot_call(
+            "sendMessage",
+            {
+                "chat_id": chat_id,
+                "text": "\n\n".join(parts),
+                "parse_mode": "HTML",
+                "disable_web_page_preview": True,
+            },
+            timeout=10,
+        )
+        return True
+    except (requests.RequestException, RuntimeError, ValueError):
+        return False
+
+
+def set_bot_commands():
+    token = bot_token()
+    if not token:
+        raise RuntimeError("Telegram bot token is not configured")
+    response = requests.post(
+        API.format(token) + "/setMyCommands",
+        json={
+            "commands": [
+                {"command": "start", "description": "شروع و راهنمای ربات"},
+                {"command": "help", "description": "راهنمای اتصال کارت به کانال"},
+            ]
+        },
+        timeout=20,
+    )
+    response.raise_for_status()
+    body = response.json()
+    if not body.get("ok"):
+        raise RuntimeError(body.get("description", "setMyCommands failed"))
+    return body.get("result")
+
+
+def welcome_text():
+    site = settings.APP_ORIGIN
+    return (
+        f"{premium_emoji('sparkle')} <b>سلام! به ربات Developer Card خوش آمدی.</b>\n\n"
+        f"با این ربات می‌توانی کارتت را به کانال <a href=\"{esc(channel_url())}\">lyrooDev</a> وصل کنی.\n\n"
+        f"{premium_emoji('next')} <b>مسیر کار:</b>\n"
+        f"۱. وارد سایت شو: <a href=\"{esc(site)}\">{esc(site)}</a>\n"
+        f"۲. با GitHub لاگین کن و کارت خودت را بساز\n"
+        f"۳. از داخل سایت، اتصال تلگرام را بزن\n"
+        f"۴. عضو کانال بمان تا کارت در کانال باقی بماند\n\n"
+        f"{premium_emoji('note')} اگر لینک اتصال از سایت آمد، همان را باز کن یا /start را با پارامتر لینک بزن."
+    )
 
 
 def esc(value):
@@ -190,22 +267,69 @@ def create_link(user):
 
 def handle_update(update):
     message = update.get("message") or {}
-    text = message.get("text", "")
+    text = (message.get("text") or "").strip()
+    chat = message.get("chat") or {}
     sender = message.get("from") or {}
-    match = re.fullmatch(r"/start(?:@[^ ]+)?\s+link_([A-Za-z0-9_-]+)", text.strip())
-    if match and message.get("chat", {}).get("type") == "private":
-        link = TelegramLink.objects.filter(token=match.group(1), expires__gt=now_ms()).select_related("user").first()
-        if link:
-            link.telegram_id = sender.get("id")
-            link.username = sender.get("username", "")
-            link.save(update_fields=["telegram_id", "username"])
-            user = link.user
-            publication = TelegramPublication.objects.filter(user=user).first()
-            if publication:
-                publication.telegram_id = link.telegram_id
-                publication.save(update_fields=["telegram_id"])
-            api_call("sendMessage", {"chat_id": message["chat"]["id"], "text": f"اتصال @{user.login} انجام شد. حالا در {channel_url()} عضو بمان تا کارتت در کانال باقی بماند."})
-        return
+    if chat.get("type") == "private" and text:
+        start_match = re.fullmatch(r"/(?:start|help)(?:@[^ ]+)?(?:\s+(\S+))?", text)
+        if start_match:
+            payload = start_match.group(1) or ""
+            link_match = re.fullmatch(r"link_([A-Za-z0-9_-]+)", payload)
+            if link_match:
+                link = (
+                    TelegramLink.objects.filter(token=link_match.group(1), expires__gt=now_ms())
+                    .select_related("user")
+                    .first()
+                )
+                if link:
+                    link.telegram_id = sender.get("id")
+                    link.username = sender.get("username", "")
+                    link.save(update_fields=["telegram_id", "username"])
+                    user = link.user
+                    publication = TelegramPublication.objects.filter(user=user).first()
+                    if publication:
+                        publication.telegram_id = link.telegram_id
+                        publication.save(update_fields=["telegram_id"])
+                    api_call(
+                        "sendMessage",
+                        {
+                            "chat_id": chat["id"],
+                            "text": (
+                                f"{premium_emoji('badge')} اتصال <code>@{esc(user.login)}</code> انجام شد.\n"
+                                f"حالا در <a href=\"{esc(channel_url())}\">{esc(channel_url())}</a> عضو بمان "
+                                f"تا کارتت در کانال باقی بماند."
+                            ),
+                            "parse_mode": "HTML",
+                            "disable_web_page_preview": True,
+                        },
+                    )
+                else:
+                    bot_call(
+                        "sendMessage",
+                        {
+                            "chat_id": chat["id"],
+                            "text": "لینک اتصال نامعتبر یا منقضی است. از داخل سایت دوباره اتصال تلگرام را بزن.",
+                        },
+                    )
+                return
+            bot_call(
+                "sendMessage",
+                {
+                    "chat_id": chat["id"],
+                    "text": welcome_text(),
+                    "parse_mode": "HTML",
+                    "disable_web_page_preview": True,
+                    "reply_markup": __import__("json").dumps(
+                        {
+                            "inline_keyboard": [
+                                [{"text": "ساخت کارت در سایت ↗", "url": settings.APP_ORIGIN}],
+                                [{"text": "کانال lyrooDev", "url": channel_url()}],
+                            ]
+                        }
+                    ),
+                },
+            )
+            return
     changed = update.get("chat_member") or {}
     changed_chat = changed.get("chat", {})
     expected_chat = str(channel_id())

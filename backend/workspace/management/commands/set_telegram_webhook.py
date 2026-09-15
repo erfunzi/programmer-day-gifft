@@ -1,12 +1,15 @@
+import json
 import os
 
 import requests
 from django.conf import settings
 from django.core.management.base import BaseCommand, CommandError
 
+from workspace.telegram import set_bot_commands
+
 
 class Command(BaseCommand):
-    help = "Register the Telegram webhook for channel membership updates."
+    help = "Register the Telegram webhook, bot commands, and channel membership updates."
 
     def handle(self, *args, **options):
         token = os.getenv("TELEGRAM_BOT_TOKEN")
@@ -27,4 +30,8 @@ class Command(BaseCommand):
         payload = response.json()
         if not payload.get("ok"):
             raise CommandError(payload.get("description", "Telegram rejected the webhook."))
-        self.stdout.write(self.style.SUCCESS("Telegram webhook registered."))
+        try:
+            set_bot_commands()
+        except (requests.RequestException, RuntimeError) as exc:
+            raise CommandError(f"Webhook registered, but setMyCommands failed: {exc}") from exc
+        self.stdout.write(self.style.SUCCESS("Telegram webhook and /start command registered."))

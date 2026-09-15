@@ -123,11 +123,32 @@ def api(view):
             response = view(request, *args, **kwargs)
             response["Cache-Control"] = "no-store"
             return response
-        except requests.RequestException:
+        except requests.RequestException as exc:
+            try:
+                from .telegram import notify_admin
+
+                notify_admin(
+                    "Upstream request failed",
+                    str(exc),
+                    context=f"{request.method} {request.path}",
+                )
+            except Exception:
+                pass
             return json_error(
                 "GitHub یا سرویس بیرونی در دسترس نیست؛ کمی بعد دوباره امتحان کن.", 503
             )
-        except Exception:
+        except Exception as exc:
+            try:
+                from .telegram import notify_admin
+                import traceback
+
+                notify_admin(
+                    "API handler error",
+                    traceback.format_exc(limit=20),
+                    context=f"{request.method} {request.path} :: {exc.__class__.__name__}: {exc}",
+                )
+            except Exception:
+                pass
             if getattr(settings, "DEBUG", False):
                 raise
             return json_error("درخواست انجام نشد؛ دوباره امتحان کن.", 500)
@@ -764,6 +785,16 @@ def github_callback(request):
             },
             flush=True,
         )
+        try:
+            from .telegram import notify_admin
+
+            notify_admin(
+                "GitHub OAuth exchange failed",
+                payload.get("error_description") or payload.get("error") or "no access_token",
+                context=f"client_id={os.getenv('GITHUB_CLIENT_ID')}",
+            )
+        except Exception:
+            pass
         return HttpResponseRedirect("/?auth_error=exchange")
     info = github("/user", access)
     user, _ = UserProfile.objects.get_or_create(
