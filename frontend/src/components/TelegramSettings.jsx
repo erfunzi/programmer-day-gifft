@@ -55,6 +55,5 @@ export function TelegramSettings({demo}) {
             </div>
           </div>
         )}
-    <p role="status" className="hint">{telegram.error?.message || telegramLink.error?.message}</p>
   </section>;
 }

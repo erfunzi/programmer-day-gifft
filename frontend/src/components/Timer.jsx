@@ -1,3 +1,4 @@
+import { toast as setStatus } from "../lib/toast";
 import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Play, Square } from "lucide-react";
@@ -7,7 +8,6 @@ import { api, dayKey, duration, hours, number } from "../lib/api";
 export function Timer({ demo }) {
   const client = useQueryClient(),
     [now, setNow] = useState(Date.now()),
-    [status, setStatus] = useState(""),
     [demoState, setDemo] = useState({ active: null, total: 0, history: [] });
   useEffect(() => {
     const id = setInterval(() => setNow(Date.now()), 1000);
@@ -91,11 +91,7 @@ export function Timer({ demo }) {
             {t?.active ? <Square size={17} /> : <Play size={17} />}{" "}
             {t?.active ? "توقف و ثبت زمان" : "شروع کار"}
           </Button>
-          <p className="hint" role="status">
-            {status ||
-              query.error?.message ||
-              (t?.active ? "تا وقتی توقف را نزنی، زمان ادامه دارد؛ حتی با بستن این صفحه." : "")}
-          </p>
+
         </section>
         <div>
           <div className="metric-grid time-metrics">

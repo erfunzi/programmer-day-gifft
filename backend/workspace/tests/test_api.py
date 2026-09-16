@@ -69,11 +69,13 @@ class WorkspaceTests(TestCase):
                 "projectReadmes": ["context"],
             },
         )
-        self.assertEqual(self.post("/api/me/share", {"publish": True}).status_code, 200)
+        self.assertEqual(self.client.get("/api/me/profile").status_code, 200)
         data = self.client.get("/api/cards/developer").json()
         self.assertNotIn("profileReadme", data)
         self.post("/api/me/share", {"publish": False})
-        self.assertEqual(self.client.get("/api/cards/developer").status_code, 404)
+        self.client.cookies.clear()
+        self.assertEqual(self.client.get("/api/cards/developer").status_code, 200)
+        self.assertEqual(self.client.get("/api/me/time").status_code, 401)
 
     def test_timer_midnight_dst_and_calendar_average(self):
         self.user.timezone = "America/New_York"
@@ -96,7 +98,7 @@ class WorkspaceTests(TestCase):
         self.assertNotIn("=", challenge)
 
     def test_analysis_persists_beyond_daily_window(self):
-        value = {"summary": "saved", "strengths": [], "suggestions": []}
+        value = {"schemaVersion": 2, "summary": "saved", "strengths": [], "suggestions": []}
         Report.objects.create(key="ai:1", value=value, saved=now_ms()-10*86400000)
         with patch("workspace.views.requests.post") as external:
             self.assertEqual(self.post("/api/me/ai").json(), value)
@@ -123,16 +125,16 @@ class WorkspaceTests(TestCase):
 
 
     def test_introduction_is_cached_and_only_published_for_public_cards(self):
-        value = {"lines": ["اول", "دوم", "سوم"]}
-        Report.objects.create(key="intro:1", value=value, saved=now_ms())
+        value = {"schemaVersion": 2, "resume": ["اول", "دوم", "سوم"]}
+        Report.objects.create(key="ai:1", value=value, saved=now_ms())
         with patch("workspace.views.requests.post") as external:
-            self.assertEqual(self.post("/api/me/introduction").json(), value)
+            self.assertEqual(self.post("/api/me/introduction").json()["resume"], value["resume"])
             external.assert_not_called()
         self.assertEqual(self.client.get("/api/cards/developer").status_code, 404)
         self.user.card = {"user": {"login":"developer"}, "repos":[]}
         self.user.published = True
         self.user.save()
-        self.assertEqual(self.client.get("/api/cards/developer").json()["introduction"], value)
+        self.assertEqual(self.client.get("/api/cards/developer").json()["analysis"], value)
 
     def test_telegram_card_upload_over_default_django_limit(self):
         from django.core.files.uploadedfile import SimpleUploadedFile
@@ -142,3 +144,19 @@ class WorkspaceTests(TestCase):
             self.assertEqual(response.status_code, 200)
             self.assertEqual(response.json()['messageId'], 123)
             self.assertEqual(len(publish.call_args.kwargs['card_image'][0]), 3 * 1024 * 1024 + 3)
+
+
+    @patch.dict("os.environ", {"GEMINI_API_KEY": "test"})
+    def test_one_ai_generation_serves_analysis_resume_and_public_card(self):
+        result = {"title":"عنوان", "summary":"تحلیل", "resume":["یک", "دو", "سه"], "skills":[{"name":"Python", "evidence":"README", "source":"self_reported"}], "strengths":[], "suggestions":[], "imagePrompt":"A developer robot"}
+        with patch("workspace.views.profile_data", return_value={"user":{"login":"developer"}, "profileReadme":"I use Python", "repos":[], "projectReadmes":[]}), patch("workspace.views.requests.post") as external:
+            external.return_value.ok = True
+            external.return_value.json.return_value = {"candidates":[{"content":{"parts":[{"text":json.dumps(result)}]}}]}
+            first = self.post("/api/me/ai")
+            self.assertEqual(first.status_code, 200)
+            self.assertEqual(first.json()["title"], "عنوان")
+            self.assertEqual(self.post("/api/me/introduction").json()["lines"], result["resume"])
+            self.assertEqual(self.post("/api/me/ai").json(), first.json())
+            external.assert_called_once()
+            prompt = external.call_args.kwargs["json"]["contents"][0]["parts"][0]["text"]
+            self.assertIn("I use Python", prompt)

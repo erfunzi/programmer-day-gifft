@@ -31,3 +31,12 @@ html[data-theme] header{border-color:var(--theme-line)}
 .calendar-years{overscroll-behavior-y:contain;scrollbar-width:thin;scrollbar-color:var(--theme-accent) var(--theme-surface)}
 .metric{position:relative}.metric-tooltip{display:none;position:absolute;z-index:10;inset-inline:0;bottom:calc(100% + 8px);padding:12px;border:1px solid var(--theme-line);border-radius:10px;background:var(--theme-surface);color:var(--theme-page-ink);font-size:12px;line-height:1.8;box-shadow:0 8px 24px #0003;pointer-events:none}.metric:hover .metric-tooltip,.metric:focus .metric-tooltip{display:block}.metric:focus-visible{outline:2px solid var(--theme-accent);outline-offset:3px}
 .developer-introduction{margin-top:24px}.developer-introduction p{margin:8px 0;line-height:1.9}
+.resume-skills{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-top:18px}.resume-skills>div{padding:14px;border:1px solid var(--theme-line);border-radius:10px;background:var(--theme-chip)}.resume-skills strong{color:var(--theme-accent)}.resume-skills small{color:var(--theme-muted)}
+
+.visitor-invite{background:var(--theme-chip);border-color:var(--theme-line);color:var(--theme-page-ink)}
+.visitor-invite strong{color:var(--theme-page-ink)}
+.visitor-invite p{color:var(--theme-muted)}
+.toast-region{position:fixed;bottom:max(24px,env(safe-area-inset-bottom));left:50%;transform:translateX(-50%);width:min(480px,calc(100% - 32px));z-index:1000;display:grid;gap:10px;pointer-events:none}
+.toast{display:flex;align-items:center;gap:16px;padding:16px 20px;background:var(--theme-surface);color:var(--theme-page-ink);border:1px solid var(--theme-accent);border-radius:12px;box-shadow:0 8px 32px #0003;line-height:1.8;pointer-events:auto;overflow-wrap:anywhere}
+.toast span{flex:1}.toast button{background:transparent;color:var(--theme-accent);border:0;font-size:24px;min-width:32px;cursor:pointer}
+@media print{.toast-region{display:none!important}}

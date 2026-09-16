@@ -39,7 +39,7 @@ export function ActivityCharts({report, demo, createdAt}) {
  <div className="calendar-layout">
  <nav className="calendar-years" aria-label="سال مشارکت‌ها">{years.map(year=><button type="button" key={year} aria-pressed={selectedYear===year} onClick={()=>{hide();setSelectedYear(year)}}>{year}</button>)}</nav>
  <div className="calendar-content">
- {selectedYear!==report.year && (calendar.isPending || calendar.error) && <p role="status">{calendar.error?.message || 'در حال دریافت مشارکت‌ها…'}</p>}
+ {selectedYear!==report.year && calendar.isPending && <p role="status">{'در حال دریافت مشارکت‌ها…'}</p>}
  <div className="calendar-scroll"><div className="calendar-cells" style={{gridTemplateColumns:`repeat(${Math.ceil((offset+calendarDays.length)/7)},14px)`}} dir="ltr">
  {Array.from({length:offset},(_,i)=><span key={'pad'+i}/>)}
  {calendarDays.map(d=><button key={d.date} type="button" className={`day-cell level-${d.count>8?3:d.count>3?2:d.count?1:0}`} aria-label={detail(d)} onMouseLeave={hide} onBlur={hide} onMouseEnter={e=>show(detail(d),e.clientX,e.clientY)} onFocus={e=>{const r=e.currentTarget.getBoundingClientRect();show(detail(d),r.left,r.bottom)}} onClick={e=>{const r=e.currentTarget.getBoundingClientRect();show(detail(d),r.left,r.bottom)}}/>)}

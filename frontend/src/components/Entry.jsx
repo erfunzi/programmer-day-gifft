@@ -1,5 +1,7 @@
+import { useToastMessage } from "../lib/toast";
 import { Button } from "./ui/button";
 export function Entry({ onDemo, status }) {
+  useToastMessage(status);
   return (
     <section id="intro" className="entry">
       <div className="intro-copy">
@@ -24,9 +26,7 @@ export function Entry({ onDemo, status }) {
           ورود رسمی از طریق GitHub؛ بدون دریافت رمز عبور یا درخواست دسترسی به
           مخزن‌های خصوصی.
         </p>
-        <p className="hint" role="status">
-          {status}
-        </p>
+
         <Button variant="ghost" onClick={onDemo}>
           دیدن نمونهٔ کارت و گزارش ←
         </Button>

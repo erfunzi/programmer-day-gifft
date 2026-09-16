@@ -1,3 +1,4 @@
+import { toast as setStatus } from "../lib/toast";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Download, Share2 } from "lucide-react";
@@ -16,18 +17,22 @@ export function DeveloperCard({
   holiday,
   theme,
   imageVersion,
-  onPublished,
 }) {
   const cardRef = useRef(null),
     data = useMemo(() => analyze(profile), [profile]);
   const telegramAutoPublished = useRef(false);
-  const introduction = useQuery({queryKey:["introduction",profile.user.login],queryFn:()=>api("/api/me/introduction",{}),enabled:!!account && !visitor && !demo,retry:false,staleTime:Infinity});
-  const introLines = demo ? ["الکس ابزارهایی برای ساخت صفحه‌ها و خدمات وب می‌سازد.", "بعضی پروژه‌های او کمک می‌کنند استفاده از وب برای افراد بیشتری آسان شود.", "او همچنین ابزارهای کوچکی برای ساده‌ترکردن کارهای تکراری ساخته است."] : visitor ? profile.introduction?.lines : introduction.data?.lines;
-
+  const introduction = useQuery({queryKey:["profile-analysis"],queryFn:()=>api("/api/me/ai",{}),enabled:!!account && !visitor && !demo,retry:false,staleTime:Infinity});
+  const narrative = demo ? {
+    title:"الکس؛ از وب دسترس‌پذیر تا خودکارسازی کارهای روزمره",
+    summary:"پروژه‌های الکس در این نمونه بر دو مسئله متمرکزند: ساده‌ترکردن استفاده از وب و کاهش کارهای تکراری. accessible-web نمونه‌ای از توجه او به دسترس‌پذیری است.",
+    resume:["من ابزارهای وب را با TypeScript توسعه می‌دهم و به استفادهٔ آسان‌تر از رابط‌ها توجه دارم.","در پروژهٔ accessible-web روی اجزای وب دسترس‌پذیر کار کرده‌ام؛ این رویکرد می‌تواند به تیم‌های محصول برای خدمت‌رسانی به کاربران بیشتر کمک کند.","از Python برای ساخت ابزارهای خودکارسازی استفاده می‌کنم؛ پروژهٔ small-automation نمونه‌ای از این مسیر است."],
+    skills:[{name:"TypeScript",evidence:"accessible-web",source:"project"},{name:"Python",evidence:"small-automation",source:"project"}], strengths:[],suggestions:[]
+  } : visitor ? profile.analysis : introduction.data;
+  const config = useQuery({queryKey:["config"],queryFn:()=>api("/api/config")});
+  const generateImage = useMutation({mutationFn:()=>api("/api/me/image",{}),onSuccess:r=>{setImage(`${r.url}?v=${Date.now()}`);setStatus(r.message || "کاراکتر آماده شد.")},onError:e=>setStatus(e.message)});
   const queryClient = useQueryClient();
   const character = useMemo(() => characterProfile(data), [data]);
-  const [status, setStatus] = useState(""),
-    [qr, setQR] = useState(""),
+  const [qr, setQR] = useState(""),
     [image, setImage] = useState("");
   const localImage = characterAssetPath("neutral", character.kind),
     u = data.user;
@@ -108,7 +113,7 @@ export function DeveloperCard({
   useEffect(() => {
     let active = true;
     QRCode.toDataURL(
-      visitor || account?.published ? shareURL : location.origin + "/",
+      demo ? location.origin + "/" : shareURL,
       { margin: 0, width: 180, errorCorrectionLevel: "M" },
     ).then((url) => {
       if (active) setQR(url);
@@ -116,7 +121,7 @@ export function DeveloperCard({
     return () => {
       active = false;
     };
-  }, [shareURL, visitor, account?.published]);
+  }, [shareURL, demo]);
   useEffect(() => {
     let active = true;
     setImage(localImage);
@@ -139,22 +144,11 @@ export function DeveloperCard({
         await exportCard(cardRef.current, u.login);
         return "تصویر همین کارت با کیفیت بالا آماده شد ✓";
       }
-      if (kind === "unshare") {
-        await api("/api/me/share", { publish: false });
-        onPublished(false);
-        return "کارت دیگر برای مهمان‌ها قابل‌مشاهده نیست.";
-      }
-      let publishedURL = shareURL;
-      if (!visitor) {
-        const shared = await api("/api/me/share", { publish: true, theme });
-        publishedURL = shared.url || shareURL;
-        onPublished(true);
-      }
       try {
-        await navigator.clipboard.writeText(publishedURL);
+        await navigator.clipboard.writeText(shareURL);
         return "لینک کارت کپی شد. زمان کار و گزارش خصوصی هستند.";
       } catch {
-        return "لینک کارت: " + publishedURL;
+        throw new Error("کپی لینک انجام نشد؛ اجازهٔ دسترسی به کلیپ‌بورد را بررسی کن.");
       }
     },
     onSuccess: setStatus,
@@ -297,12 +291,11 @@ export function DeveloperCard({
       </article>
       <div className="story">
         <div className="story-label">// به زبان ساده</div>
-        <h2>{title}، به روایت پروژه‌ها</h2>
-        <p>
-          {description}
-          {data.top &&
-            ` پروژهٔ «${data.top.name}» یکی از نمونه‌های قابل‌مشاهدهٔ این مسیر است.`}
-        </p>
+        <h2>{narrative?.title || `معرفی ${u.name || u.login}`}</h2>
+        <p>{narrative?.summary || (introduction.isFetching ? "در حال تحلیل پروفایل و READMEها…" : "تحلیل این پروفایل هنوز آماده نیست.")}</p>
+
+        {narrative?.strengths?.length > 0 && <ul>{narrative.strengths.map((text,i)=><li key={i}>{text}</li>)}</ul>}
+        {narrative?.suggestions?.length > 0 && <details><summary>پیشنهادهای رشد</summary><ul>{narrative.suggestions.map((text,i)=><li key={i}>{text}</li>)}</ul></details>}
         <div className="languages">
           {data.languages.slice(0, 5).map(([language, count]) => (
             <span className="language" key={language}>
@@ -310,13 +303,6 @@ export function DeveloperCard({
             </span>
           ))}
         </div>
-        <p className="hint">
-          {demo
-            ? "اطلاعات نمایشی"
-            : number(profile.repos.length) + " مخزن عمومی بررسی‌شده"}
-          ؛ حوزهٔ کاری برداشتی از موضوع‌ها و زبان‌هاست. پروژه‌های خصوصی و کارهای
-          خارج از GitHub در این تصویر نیستند.
-        </p>
         {data.top && (
           <a
             className="repo-highlight"
@@ -358,31 +344,22 @@ export function DeveloperCard({
             onClick={() => action.mutate("share")}
           >
             <Share2 size={17} />
-            {visitor ? "کپی لینک کارت" : "انتشار و کپی لینک"}
+            کپی لینک
           </Button>
-          {account?.published && !visitor && (
-            <Button
-              variant="ghost"
-              disabled={action.isPending}
-              onClick={() => action.mutate("unshare")}
-            >
-              توقف اشتراک‌گذاری
-            </Button>
-          )}
           <Button variant="secondary" onClick={() => window.print()}>
             چاپ
           </Button>
         </div>
-        {(introLines || introduction.isFetching) && <section className="surface developer-introduction" aria-label="معرفی به زبان ساده">
-          <h3>آشنایی با {u.name || u.login}</h3>
-          {introLines ? introLines.map((line,i)=><p key={i}>{line}</p>) : <p role="status">در حال آماده‌کردن معرفی…</p>}
+        {narrative?.resume && <section className="surface developer-introduction" aria-label="معرفی حرفه‌ای">
+          <h3>دربارهٔ {u.name || u.login}</h3>
+          {narrative.resume.map((line,i)=><p key={i}>{line}</p>)}
+          <div className="resume-skills">{narrative.skills?.map((skill,i)=><div key={i}><strong>{skill.name}</strong><p>{skill.evidence}</p><small>{skill.source === "self_reported" ? "بر اساس معرفی خود فرد" : "بر اساس پروژه‌ها"}</small></div>)}</div>
         </section>}
+        {!demo && !visitor && config.data?.imageReady && <Button variant="secondary" disabled={generateImage.isPending || introduction.isFetching} onClick={()=>generateImage.mutate()}>{generateImage.isPending ? "در حال ساخت کاراکتر…" : "ساخت کاراکتر از تحلیل"}</Button>}
         {!visitor && !demo && telegram.data?.configured && telegram.data.linked && (
           <Button variant="secondary" disabled={telegramPublish.isPending} onClick={() => telegramPublish.mutate()}>انتشار با این تم در تلگرام</Button>
         )}
-        <p className="hint" role="status">
-          {status}
-        </p>
+
       </div>
     </div>
   );

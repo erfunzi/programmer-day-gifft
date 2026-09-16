@@ -70,3 +70,21 @@ test('React demo preserves card, tabs, timer and layout',async({page})=>{
  expect(file.suggestedFilename()).toBe('developer-card-alex-sample.png');
  await file.saveAs(`test-results/export-${test.info().project.name}.png`);
 });
+
+test('public card copies its themed link and dismisses the toast after five seconds', async ({page}) => {
+ const {sample} = await import('../src/lib/sample.js');
+ await page.route('**/api/cards/alex-sample', r => r.fulfill({json:sample}));
+ await page.addInitScript(() => Object.defineProperty(navigator, 'clipboard', {value:{writeText:async text => {window.copiedLink=text;}}}));
+ await page.goto('/?u=alex-sample&theme=neon-arcade');
+ const copy=page.getByRole('button',{name:'کپی لینک',exact:true});
+ await expect(copy).toBeVisible();
+ await expect(page.getByRole('button',{name:'توقف اشتراک‌گذاری'})).toHaveCount(0);
+ await copy.click();
+ await expect(page.locator('.toast')).toContainText('لینک کارت کپی شد');
+ expect(await page.evaluate(()=>window.copiedLink)).toContain('?u=alex-sample&theme=neon-arcade');
+ const theme = await page.locator('.visitor-invite').evaluate(el=>({actual:getComputedStyle(el).backgroundColor,expected:getComputedStyle(document.documentElement).getPropertyValue('--theme-chip').trim()}));
+ expect(theme.actual).not.toBe('rgb(36, 50, 33)');
+ await expect(page.locator('.toast')).toHaveCount(0,{timeout:6500});
+ await copy.click();
+ await expect(page.locator('.toast')).toBeVisible();
+});

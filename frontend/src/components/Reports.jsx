@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Button } from "./ui/button";
 import { Metric } from "./Metric";
@@ -6,7 +5,6 @@ import { api, number } from "../lib/api";
 import { activityStats, exportReport } from "../lib/activity";
 import { ActivityCharts } from "./ActivityCharts";
 export function Reports({ demo, onImage, createdAt }) {
-  const [status, setStatus] = useState("");
   const report = useQuery({
     queryKey: ["activity", demo],
     queryFn: () =>
@@ -33,16 +31,7 @@ export function Reports({ demo, onImage, createdAt }) {
           }
         : api("/api/me/activity"),
   });
-  const config = useQuery({queryKey:["config"],queryFn:()=>api("/api/config")});
-  const ai = useQuery({queryKey:["analysis",demo],queryFn:()=>api("/api/me/ai",{}),enabled:!demo,retry:false,staleTime:Infinity});
-  const image = useMutation({
-    mutationFn: () => api("/api/me/image", {}),
-    onSuccess: (result) => {
-      onImage();
-      setStatus(result.message || "کاراکتر اختصاصی روی کارت قرار گرفت.");
-    },
-    onError: (e) => setStatus(e.message),
-  });
+  const ai = useQuery({queryKey:["profile-analysis"],enabled:false});
   const labels = {
     bestDay: ["پرمشارکت‌ترین روز", "بیشترین تعداد مشارکت ثبت‌شده در یک روز."],
     total: ["کل مشارکت‌ها", "تمام مشارکت‌های ثبت‌شده در تقویم GitHub."],
@@ -67,7 +56,7 @@ export function Reports({ demo, onImage, createdAt }) {
           دریافت گزارش
         </Button>
       </div>
-      {(report.isPending || report.error) && <p className="hint" role="status">{report.error?.message || "در حال خواندن فعالیت‌های GitHub…"}</p>}
+      {report.isPending && <p className="hint" role="status">{"در حال خواندن فعالیت‌های GitHub…"}</p>}
       <div className="metric-grid">
         {report.data &&
           Object.entries(labels).map(([key, [title, hint]]) => {
@@ -94,54 +83,6 @@ export function Reports({ demo, onImage, createdAt }) {
           })}
       </div>
       {report.data && <ActivityCharts report={report.data} demo={demo} createdAt={createdAt} />}
-      <section className="surface ai-surface">
-        <div className="section-heading">
-          <div>
-            <div className="eyebrow" dir="ltr">
-              A SECOND PERSPECTIVE
-            </div>
-            <h2>تحلیل اختصاصی، با AI</h2>
-          </div>
-        </div>
-        <p role="status" className="hint">
-          {ai.isFetching
-            ? "در حال بررسی پروژه‌ها و گزارش‌ها…"
-            : image.isPending
-              ? "ساخت کاراکتر ممکن است کمی زمان ببرد…"
-              : ai.error?.message || status}
-        </p>
-        {ai.data && (
-          <div>
-            <p>{ai.data.summary}</p>
-            {[
-              ["نکات قابل‌مشاهده", ai.data.strengths],
-              ["پیشنهادهای قابل‌اجرا", ai.data.suggestions],
-            ].map(([title, list]) => (
-              <section key={title}>
-                <h3>{title}</h3>
-                <ul>
-                  {list.map((text, i) => (
-                    <li key={i}>{text}</li>
-                  ))}
-                </ul>
-              </section>
-            ))}
-          </div>
-        )}
-        {!demo && config.data?.imageReady && <div className="actions">
-          <Button
-            variant="secondary"
-            disabled={image.isPending || ai.isFetching}
-            onClick={() =>
-              demo
-                ? setStatus("برای ساخت کاراکتر اختصاصی وارد شو.")
-                : image.mutate()
-            }
-          >
-            ساخت کاراکتر از تحلیل
-          </Button>
-        </div>}
-      </section>
     </>
   );
 }

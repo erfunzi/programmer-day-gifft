@@ -129,12 +129,7 @@ export default function App() {
               : "وارد شدی؛ کارت و گزارش‌ها آماده‌ می‌شوند…"}
           </p>
         )}
-        <p role="status" className="hint">
-          {profile.error?.message ||
-            session.error?.message ||
-            logout.error?.message ||
-            (profile.isFetching && data ? "در حال به‌روز کردن پروفایل GitHub…" : "")}
-        </p>
+
         {data && (
           <section id="workspace">
             <div className="workspace-heading">
@@ -208,12 +203,6 @@ export default function App() {
                   holiday={holiday}
                   theme={theme}
                   imageVersion={imageVersion}
-                  onPublished={(published) =>
-                    client.setQueryData(["session"], (old) => ({
-                      ...old,
-                      user: { ...old.user, published },
-                    }))
-                  }
                 />
               </TabsContent>
               {!visitor && (
