@@ -295,14 +295,14 @@ def atria_generate_text(prompt_text):
 
 
 def generate_ai_text(prompt_text):
-    """Gemini first, then AgentRouter, then Atria. Returns (text, provider)."""
+    """Gemini first, then Atria, then AgentRouter last. Returns (text, provider)."""
     providers = []
     if os.getenv("GEMINI_API_KEY"):
         providers.append(("Gemini", gemini_generate_text))
-    if os.getenv("AGENTROUTER_API_KEY"):
-        providers.append(("AgentRouter", agentrouter_generate_text))
     if os.getenv("ATRIA_API_KEY"):
         providers.append(("Atria", atria_generate_text))
+    if os.getenv("AGENTROUTER_API_KEY"):
+        providers.append(("AgentRouter", agentrouter_generate_text))
     if not providers:
         raise RuntimeError("AI is not configured")
     last_error = None
