@@ -1,4 +1,7 @@
 export const THEMES = [
+  {id:"sky-bloom",name:"شکوفهٔ آسمان",english:"Sky Bloom",description:"آبی روشن، لطیف و شفاف",colors:["#edf6ff","#195c9a","#7150a5"]},
+  {id:"cherry-noir",name:"گیلاس نیمه‌شب",english:"Cherry Noir",description:"بلک چری، عمیق و مخملی",colors:["#180d15","#ff91b3","#d6a2ed"]},
+  {id:"graphite-core",name:"هستهٔ گرافیتی",english:"Graphite Core",description:"خاکستری تیره، خنثی و صنعتی",colors:["#16181c","#d8dee8","#94a8c4"]},
   {
     id: "aurora-mint",
     name: "شفق نعنایی",
@@ -43,8 +46,8 @@ export const THEMES = [
   },
 ];
 
-export const DEFAULT_THEME = THEMES[0].id;
+export const DEFAULT_THEME = "aurora-mint";
 
 export function getTheme(id) {
-  return THEMES.find((theme) => theme.id === id) || THEMES[0];
+  return THEMES.find((theme) => theme.id === id) || THEMES.find((theme) => theme.id === DEFAULT_THEME);
 }

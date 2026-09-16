@@ -52,9 +52,20 @@ export function rateProfile(profile, original, languages, stars) {
   const impact = clamp(ratio(stars, 700) * 0.7 + ratio(profile.user?.followers || 0, 500) * 0.3);
   const momentum = clamp((recentlyTouched / Math.max(1, repos.length)) * 70 + ratio(publicRepos, 80) * 0.3);
   const consistency = clamp(Math.min(70, repos.length * 7) + Math.min(30, topics.size * 3));
-  const overall = clamp(
-    breadth * 0.2 + craft * 0.2 + impact * 0.2 + momentum * 0.2 + consistency * 0.2,
-  );
+  // A public activity proxy, not a claim about personal effort or working hours.
+  // Reward projects revisited after at least 30 days and activity spread over months.
+  const monthKeys = new Set();
+  let maintained = 0;
+  for (const repo of repos) {
+    const created = Date.parse(repo.created_at || "");
+    const pushed = Date.parse(repo.pushed_at || "");
+    if (Number.isFinite(pushed) && pushed <= now && now - pushed <= 365 * 86400000) {
+      monthKeys.add(new Date(pushed).toISOString().slice(0, 7));
+      if (Number.isFinite(created) && pushed - created >= 30 * 86400000) maintained++;
+    }
+  }
+  const persistence = clamp((monthKeys.size / 12) * 50 + (maintained / Math.max(1, repos.length)) * 50);
+  const overall = clamp((breadth + craft + impact + momentum + consistency + persistence) / 6);
   return {
     overall,
     fields: [
@@ -63,6 +74,8 @@ export function rateProfile(profile, original, languages, stars) {
       { key: "impact", label: "IMPACT", fa: "اثرگذاری", score: impact },
       { key: "momentum", label: "MOMENTUM", fa: "شتاب فعالیت", score: momentum },
       { key: "consistency", label: "DEPTH", fa: "عمق مسیر", score: consistency },
+      { key: "persistence", label: "GRIT", fa: "پشتکار", score: persistence,
+        description: "برآورد از پروژه‌های ادامه‌یافته پس از ۳۰ روز و پراکندگی آخرین فعالیت پروژه‌ها در ماه‌های سال اخیر؛ تاریخچهٔ کامل فعالیت نیست." },
     ],
   };
 }

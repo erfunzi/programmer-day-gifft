@@ -3,6 +3,8 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { Button } from "./ui/button";
 import { Metric } from "./Metric";
 import { api, number } from "../lib/api";
+import { activityStats, exportReport } from "../lib/activity";
+import { ActivityCharts } from "./ActivityCharts";
 export function Reports({ demo, onImage }) {
   const [status, setStatus] = useState("");
   const report = useQuery({
@@ -17,11 +19,12 @@ export function Reports({ demo, onImage }) {
               reviews: 18,
               issues: 12,
               days: Array.from({ length: 180 }, (_, i) => ({
-                date: "روز نمونهٔ " + (i + 1),
+                date: new Date(Date.UTC(new Date().getFullYear(), 0, i + 1)).toISOString().slice(0,10),
                 count: i % 5 === 0 ? 0 : (i * 17) % 12,
               })),
             },
             previous: {
+              days: Array.from({length:180},(_,i)=>({date:new Date(Date.UTC(new Date().getFullYear()-1,0,i+1)).toISOString().slice(0,10),count:i%4===0?0:(i*7)%9})),
               commits: 210,
               pullRequests: 24,
               reviews: 9,
@@ -30,20 +33,20 @@ export function Reports({ demo, onImage }) {
           }
         : api("/api/me/activity"),
   });
-  const ai = useMutation({
-    mutationFn: () => api("/api/me/ai", {}),
-    onError: (e) => setStatus(e.message),
-    onSuccess: () => setStatus("تحلیل Gemini آماده شد."),
-  });
+  const config = useQuery({queryKey:["config"],queryFn:()=>api("/api/config")});
+  const ai = useQuery({queryKey:["analysis",demo],queryFn:()=>api("/api/me/ai",{}),enabled:!demo,retry:false,staleTime:Infinity});
   const image = useMutation({
     mutationFn: () => api("/api/me/image", {}),
-    onSuccess: () => {
+    onSuccess: (result) => {
       onImage();
-      setStatus("کاراکتر اختصاصی روی کارت قرار گرفت.");
+      setStatus(result.message || "کاراکتر اختصاصی روی کارت قرار گرفت.");
     },
     onError: (e) => setStatus(e.message),
   });
   const labels = {
+    total: ["کل مشارکت‌ها", "تمام مشارکت‌های ثبت‌شده در تقویم GitHub."],
+    activeDays: ["روزهای فعال", "روزهایی با حداقل یک مشارکت."],
+    longest: ["بیشترین تداوم", "بیشترین روزهای متوالی با مشارکت ثبت‌شده."],
     commits: ["تغییر ثبت‌شده", "کامیت: یک بسته تغییر ذخیره‌شده در پروژه."],
     pullRequests: ["پیشنهاد ادغام", "درخواست واردکردن تغییرات به یک پروژه."],
     reviews: ["بازبینی کد", "کمک به بررسی تغییرات دیگران."],
@@ -58,8 +61,8 @@ export function Reports({ demo, onImage }) {
         </div>
         <Button
           variant="secondary"
-          disabled={report.isFetching}
-          onClick={() => report.refetch()}
+          disabled={!report.data || report.isFetching}
+          onClick={() => exportReport({...report.data, demo}, ai.data)}
         >
           دریافت گزارش
         </Button>
@@ -81,8 +84,8 @@ export function Reports({ demo, onImage }) {
       <div className="metric-grid">
         {report.data &&
           Object.entries(labels).map(([key, [title, hint]]) => {
-            const c = report.data.current[key],
-              p = report.data.previous[key];
+            const c = activityStats(report.data.current)[key],
+              p = activityStats(report.data.previous)[key];
             return (
               <Metric
                 key={key}
@@ -93,7 +96,7 @@ export function Reports({ demo, onImage }) {
                   number(p) +
                   " · " +
                   (p
-                    ? number(((c - p) / p) * 100) + "٪ نسبت به پارسال"
+                    ? number(Math.round(((c - p) / p) * 1000) / 10) + "٪ نسبت به پارسال"
                     : c
                       ? "پارسال در این بازه موردی ثبت نشده"
                       : "بدون تغییر")
@@ -103,44 +106,7 @@ export function Reports({ demo, onImage }) {
             );
           })}
       </div>
-      <div className="report-columns">
-        <section className="surface">
-          <h3>ریتم مشارکت امسال</h3>
-          <div className="activity-map" aria-label="تقویم فعالیت">
-            {report.data?.current.days.map((d, i) => (
-              <span
-                key={d.date + "-" + i}
-                className={
-                  d.count > 8
-                    ? "level3"
-                    : d.count > 3
-                      ? "level2"
-                      : d.count
-                        ? "level1"
-                        : ""
-                }
-                title={d.date + " · " + number(d.count) + " مشارکت"}
-              />
-            ))}
-          </div>
-          <p className="hint">
-            هر خانه یک روز است؛ رنگ روشن‌تر یعنی مشارکت بیشتر. روز بدون کامیت
-            الزاماً روز بدون کار نیست.
-          </p>
-        </section>
-        <section className="surface">
-          <h3>چه چیزهایی را می‌شود فهمید؟</h3>
-          <p>
-            تغییرات ثبت‌شده، پیشنهادهای ادغام، بازبینی‌ها و گفت‌وگو دربارهٔ
-            مسئله‌ها، جنبه‌های متفاوت همکاری‌اند.
-          </p>
-          <p className="hint">
-            این عددها ساعت کار، کیفیت کد یا ارزش یک فرد را اندازه نمی‌گیرند.
-            مقایسهٔ تاریخی ستاره‌ها و دنبال‌کننده‌ها بدون دادهٔ ذخیره‌شده قابل
-            بازسازی دقیق نیست.
-          </p>
-        </section>
-      </div>
+      {report.data && <ActivityCharts report={report.data} />}
       <section className="surface ai-surface">
         <div className="section-heading">
           <div>
@@ -149,29 +115,14 @@ export function Reports({ demo, onImage }) {
             </div>
             <h2>تحلیل اختصاصی، با AI</h2>
           </div>
-          <Button
-            disabled={ai.isPending || image.isPending}
-            onClick={() =>
-              demo
-                ? setStatus("برای تحلیل اطلاعات واقعی، با GitHub وارد شو.")
-                : ai.mutate()
-            }
-          >
-            تحلیل مسیر من
-          </Button>
         </div>
-        <p className="hint">
-          با انتخاب این دکمه، اطلاعات عمومی پروژه‌ها و خلاصهٔ زمان ثبت‌شده برای
-          تحلیل به Gemini فرستاده می‌شود. این برداشت از فعالیت‌هاست، نه تشخیص
-          شخصیت واقعی. در طرح رایگان، داده‌ها ممکن است برای بهبود سرویس استفاده
-          شوند.
-        </p>
+        <p className="hint">تحلیل نخست از اطلاعات عمومی پروژه‌ها ساخته و در حساب تو ذخیره می‌شود.</p>
         <p role="status" className="hint">
-          {ai.isPending
+          {ai.isFetching
             ? "در حال بررسی پروژه‌ها و گزارش‌ها…"
             : image.isPending
               ? "ساخت کاراکتر ممکن است کمی زمان ببرد…"
-              : status}
+              : ai.error?.message || status}
         </p>
         {ai.data && (
           <div>
@@ -191,10 +142,10 @@ export function Reports({ demo, onImage }) {
             ))}
           </div>
         )}
-        <div className="actions">
+        {!demo && config.data?.imageReady && <div className="actions">
           <Button
             variant="secondary"
-            disabled={image.isPending || ai.isPending}
+            disabled={image.isPending || ai.isFetching}
             onClick={() =>
               demo
                 ? setStatus("برای ساخت کاراکتر اختصاصی وارد شو.")
@@ -203,11 +154,7 @@ export function Reports({ demo, onImage }) {
           >
             ساخت کاراکتر از تحلیل
           </Button>
-        </div>
-        <p className="hint">
-          تولید تصویر به سرویس تصویر و سهمیهٔ جداگانه وابسته است. در نبود آن،
-          کاراکتر آمادهٔ متناسب با حوزهٔ کارت استفاده می‌شود.
-        </p>
+        </div>}
       </section>
     </>
   );

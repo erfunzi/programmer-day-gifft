@@ -72,6 +72,10 @@ def reserve_report(key, interval):
     """Atomically reserve a short-lived external request slot."""
     current = now_ms()
     with transaction.atomic():
+        # Lock an existing owner row even when the first reservation does not exist.
+        owner = key.rsplit(":", 1)[-1]
+        if owner.isdigit():
+            UserProfile.objects.select_for_update().filter(pk=int(owner)).first()
         row = Report.objects.select_for_update().filter(key=key).first()
         if row and current - row.saved < interval:
             return False
@@ -458,7 +462,7 @@ def timezone(request):
     user = session_user(request)
     if not user:
         return json_error("برای ادامه با GitHub وارد شو.", 401)
-    value = payload(request).get("timezone", "UTC")
+    value = payload(request).get("timezone", "Asia/Tehran")
     try:
         __import__("zoneinfo").ZoneInfo(value)
     except Exception:
@@ -575,7 +579,7 @@ def telegram_webhook(request):
 
 def generate_ai(user):
     cached = Report.objects.filter(key=f"ai:{user.id}").first()
-    if cached and now_ms() - cached.saved < 86400000 and isinstance(cached.value, dict):
+    if cached and isinstance(cached.value, dict) and cached.value:
         return cached.value
     if not os.getenv("GEMINI_API_KEY"):
         raise RuntimeError("AI is not configured")
@@ -611,10 +615,8 @@ def ai(request):
     user = session_user(request)
     if not user:
         return json_error("برای ادامه با GitHub وارد شو.", 401)
-    if not os.getenv("GEMINI_API_KEY"):
-        return json_error("تحلیل هوشمند فعال نیست؛ گزارش عددی همچنان قابل استفاده است.", 503)
     cached = Report.objects.filter(key=f"ai:{user.id}").first()
-    if cached and now_ms() - cached.saved < 86400000 and isinstance(cached.value, dict):
+    if cached and isinstance(cached.value, dict) and cached.value:
         return JsonResponse(cached.value)
     if not reserve_report(f"limit:ai:{user.id}", 120000):
         return json_error("برای جلوگیری از مصرف سهمیه، تحلیل بعدی کمی بعد آماده می‌شود.", 429, 120)
@@ -643,8 +645,18 @@ def image(request):
         return json_error(
             "تولید تصویر فعال نیست؛ کاراکتر آماده روی کارت باقی می‌ماند.", 503
         )
-    if not reserve_report(f"limit:image:{user.id}", 300000):
-        return json_error("تولید تصویر اخیراً انجام شده؛ کمی بعد دوباره امتحان کن.", 429, 300)
+    evidence = profile_data(user)
+    fingerprint = digest(json.dumps({
+        "bio": evidence.get("user", {}).get("bio"),
+        "readme": evidence.get("profileReadme"),
+        "readmes": sorted(evidence.get("projectReadmes", []), key=lambda r: r["name"]),
+        "repos": sorted([{k: r.get(k) for k in ("name", "description", "language", "topics", "pushed_at")} for r in evidence.get("repos", [])], key=lambda r: r["name"]),
+    }, sort_keys=True, ensure_ascii=False))
+    metadata = Report.objects.filter(key=f"image-source:{user.id}").first()
+    if item and metadata and metadata.value.get("fingerprint") == fingerprint:
+        return JsonResponse({"url": "/api/me/image", "reused": True, "message": "داده‌های پروژه‌هایت تغییری نکرده؛ همان کاراکتر قبلی همچنان مناسب مسیر توست."})
+    if not reserve_report(f"limit:image:{user.id}", 86400000):
+        return json_error("ساخت کاراکتر هر ۲۴ ساعت یک‌بار امکان‌پذیر است.", 429, 86400)
     try:
         report_data = generate_ai(user)
     except requests.RequestException:
@@ -655,6 +667,7 @@ def image(request):
         report_data.get("imagePrompt")
         or "A polished square 3D collectible developer character, gender-neutral, dark green studio lighting, inspired by software tools and open-source craft. No text, no watermark, no real-person likeness."
     )
+    prompt += " Current public project evidence: " + json.dumps(evidence, ensure_ascii=False)[:12000]
     response = requests.post(
         f"https://generativelanguage.googleapis.com/v1beta/models/{os.getenv('GEMINI_IMAGE_MODEL', 'gemini-3.1-flash-image')}:generateContent",
         headers={
@@ -705,6 +718,7 @@ def image(request):
     GeneratedImage.objects.update_or_create(
         user=user, defaults={"mime_type": mime, "body": raw}
     )
+    Report.objects.update_or_create(key=f"image-source:{user.id}", defaults={"value": {"fingerprint": fingerprint}, "saved": now_ms()})
     return JsonResponse({"url": "/api/me/image"})
 
 

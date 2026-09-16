@@ -4,12 +4,6 @@ import { Play, Square } from "lucide-react";
 import { Button } from "./ui/button";
 import { Metric } from "./Metric";
 import { api, dayKey, duration, hours, number } from "../lib/api";
-const zones = [
-  "UTC",
-  ...(Intl.supportedValuesOf
-    ? Intl.supportedValuesOf("timeZone")
-    : ["Asia/Tehran", "Asia/Ashgabat"]),
-];
 export function Timer({ demo }) {
   const client = useQueryClient(),
     [now, setNow] = useState(Date.now()),
@@ -30,8 +24,8 @@ export function Timer({ demo }) {
     ? {
         ...demoState,
         serverNow: now,
-        timezone: "UTC",
-        daily: { [dayKey(now, "UTC")]: demoState.total },
+        timezone: "Asia/Tehran",
+        daily: { [dayKey(now, "Asia/Tehran")]: demoState.total },
         today: demoState.total,
         elapsedDays: 1,
         averagePerCalendarDay: demoState.total,
@@ -54,11 +48,6 @@ export function Timer({ demo }) {
     },
     onError: (e) => setStatus(e.message),
   });
-  const timezone = useMutation({
-    mutationFn: (value) => api("/api/me/timezone", { timezone: value }),
-    onSuccess: () => client.invalidateQueries({ queryKey: ["time"] }),
-    onError: (e) => setStatus(e.message),
-  });
   const toggle = () => {
     if (!demo) return action.mutate();
     setDemo((s) =>
@@ -73,7 +62,7 @@ export function Timer({ demo }) {
     setStatus("تایمر نمونه است؛ چیزی در حساب ذخیره نمی‌شود.");
   };
   const serverNow = t ? now + (t.serverNow - query.dataUpdatedAt || 0) : now;
-  const today = dayKey(now, t?.timezone || "UTC"),
+  const today = dayKey(now, t?.timezone || "Asia/Tehran"),
     days = Array.from({ length: 7 }, (_, i) =>
       new Date(Date.parse(today + "T12:00:00Z") - (6 - i) * 86400000)
         .toISOString()
@@ -106,21 +95,6 @@ export function Timer({ demo }) {
             {status ||
               query.error?.message ||
               "تا وقتی توقف را نزنی، زمان ادامه دارد؛ حتی با بستن این صفحه."}
-          </p>
-          <label htmlFor="timezone">منطقهٔ زمانی گزارش</label>
-          <select
-            id="timezone"
-            value={t?.timezone || "UTC"}
-            disabled={demo || timezone.isPending}
-            onChange={(e) => timezone.mutate(e.target.value)}
-          >
-            {zones.map((z) => (
-              <option key={z}>{z}</option>
-            ))}
-          </select>
-          <p className="hint">
-            تغییر منطقهٔ زمانی، دسته‌بندی تمام زمان‌ها بر اساس روز را تغییر
-            می‌دهد.
           </p>
         </section>
         <div>

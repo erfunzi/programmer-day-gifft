@@ -33,9 +33,6 @@ export function DeveloperCard({
     queryFn: () => api("/api/me/telegram"),
     enabled: !!account && !visitor && !demo,
   });
-  const telegramLink = useMutation({
-    mutationFn: () => api("/api/me/telegram/link", {}),
-  });
   const telegramPublish = useMutation({
     mutationFn: async () => {
       const card = await exportCard(cardRef.current, u.login, { download: false });
@@ -173,7 +170,7 @@ export function DeveloperCard({
           </span>
         </div>
         <div className="rating-badge" aria-label={`امتیاز کلی ${data.rating.overall} از 100`}>
-          <span>OVERALL RATING</span>
+          <span>OVR</span>
           <strong>{data.rating.overall}</strong>
           <small>/100</small>
         </div>
@@ -234,15 +231,15 @@ export function DeveloperCard({
         </div>
         <div className="stats">
           <div>
-            <b>{number(u.public_repos)}</b>
+            <b>{Number(u.public_repos || 0).toLocaleString("en-US")}</b>
             <span>public projects</span>
           </div>
           <div>
-            <b>{number(data.stars)}</b>
+            <b>{Number(data.stars || 0).toLocaleString("en-US")}</b>
             <span>project stars</span>
           </div>
           <div>
-            <b>{number(u.followers)}</b>
+            <b>{Number(u.followers || 0).toLocaleString("en-US")}</b>
             <span>followers</span>
           </div>
         </div>
@@ -300,27 +297,12 @@ export function DeveloperCard({
           </div>
           <div className="rating-bars">
             {data.rating.fields.map((field) => (
-              <div className="rating-bar" key={field.key}>
+              <div className="rating-bar" key={field.key} title={field.description}>
                 <div><span>{field.fa}</span><b>{field.score}</b></div>
                 <i><i style={{ width: `${field.score}%` }} /></i>
               </div>
             ))}
           </div>
-        </div>
-        <div className="plain-guide">
-          <h3>این عددها چه می‌گویند؟</h3>
-          <p>
-            <strong>پروژه:</strong> جایی برای ساختن یک ابزار، محصول یا آزمایش.
-            همهٔ پروژه‌ها محصول تمام‌شده نیستند.
-          </p>
-          <p>
-            <strong>ستاره:</strong> کسی این پروژه را پسندیده یا برای بعد ذخیره
-            کرده؛ معادل تعداد مشتری یا کیفیت قطعی نیست.
-          </p>
-          <p>
-            <strong>دنبال‌کننده:</strong> افرادی که می‌خواهند فعالیت این
-            توسعه‌دهنده را دنبال کنند.
-          </p>
         </div>
         <div className="actions">
           <Button
@@ -351,61 +333,8 @@ export function DeveloperCard({
             چاپ
           </Button>
         </div>
-        {!visitor && !demo && telegram.data?.configured && (
-          <div className="telegram-bridge" dir="rtl">
-            <div>
-              <strong>کارتت در کانال lyrooDev</strong>
-              <p>
-                {telegram.data.linked
-                  ? telegram.data.joined
-                    ? "عضویت تأیید شد؛ کارت با همین تم در کانال منتشر می‌شود."
-                    : "برای ماندن کارت، بعد از اتصال در کانال عضو بمان."
-                  : "حسابت را به تلگرام وصل کن تا انتشار و وضعیت عضویت قابل‌پیگیری باشد."}
-              </p>
-            </div>
-            <div className="telegram-bridge-actions">
-              {!telegram.data.linked && !telegramLink.data && (
-                <Button
-                  variant="secondary"
-                  disabled={telegramLink.isPending}
-                  onClick={() => telegramLink.mutate()}
-                >
-                  اتصال تلگرام
-                </Button>
-              )}
-              {telegramLink.data?.url && (
-                <Button asChild>
-                  <a href={telegramLink.data.url} target="_blank" rel="noreferrer">
-                    باز کردن ربات تلگرام ↗
-                  </a>
-                </Button>
-              )}
-              {telegramLink.data?.url && !telegram.data.linked && (
-                <Button
-                  variant="ghost"
-                  onClick={() => queryClient.invalidateQueries({ queryKey: ["telegram-status"] })}
-                >
-                  بررسی اتصال
-                </Button>
-              )}
-              {telegram.data.channelUrl && (
-                <Button variant="ghost" asChild>
-                  <a href={telegram.data.channelUrl} target="_blank" rel="noreferrer">
-                    {telegram.data.joined ? "مشاهدهٔ کانال" : "عضویت در کانال ↗"}
-                  </a>
-                </Button>
-              )}
-              {telegram.data.linked && (
-                <Button
-                  variant="secondary"
-                  disabled={telegramPublish.isPending}
-                  onClick={() => telegramPublish.mutate()}
-                >
-                  انتشار با این تم
-                </Button>
-              )}
-            </div>
-          </div>
+        {!visitor && !demo && telegram.data?.configured && telegram.data.linked && (
+          <Button variant="secondary" disabled={telegramPublish.isPending} onClick={() => telegramPublish.mutate()}>انتشار با این تم در تلگرام</Button>
         )}
         {!visitor && (
           <p className="hint">

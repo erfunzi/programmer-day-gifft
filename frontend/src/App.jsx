@@ -1,3 +1,5 @@
+import { TelegramSettings } from "./components/TelegramSettings";
+import { TimezoneSettings } from "./components/TimezoneSettings";
 import { useEffect, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "./lib/api";
@@ -182,7 +184,6 @@ export default function App() {
                 </Button>
               </div>
             )}
-            <ThemePicker value={theme} onChange={setTheme} />
             <Tabs defaultValue="card" dir="rtl">
               <TabsList aria-label="بخش‌های پروفایل">
                 <TabsTrigger value="card">کارت و معرفی</TabsTrigger>
@@ -192,6 +193,7 @@ export default function App() {
                     <TabsTrigger value="time">زمان کار</TabsTrigger>
                   </>
                 )}
+                <TabsTrigger value="settings">تنظیمات</TabsTrigger>
               </TabsList>
               <TabsContent value="card">
                 <DeveloperCard
@@ -223,6 +225,11 @@ export default function App() {
                   </TabsContent>
                 </>
               )}
+              <TabsContent value="settings">
+                <ThemePicker value={theme} onChange={setTheme} />
+                {!visitor && <TimezoneSettings demo={demo} />}
+                {!visitor && <TelegramSettings demo={demo} />}
+              </TabsContent>
             </Tabs>
           </section>
         )}

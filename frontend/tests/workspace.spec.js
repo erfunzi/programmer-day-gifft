@@ -9,8 +9,30 @@ test('React demo preserves card, tabs, timer and layout',async({page})=>{
  await page.getByRole('button',{name:'دیدن نمونهٔ کارت و گزارش ←'}).click();
  await expect(page.locator('#dev-card')).toBeVisible();
  await expect(page.locator('#dev-card h2')).toHaveText('Alex Developer');
+ await expect(page.locator('.theme-picker')).toBeHidden();
+ await expect(page.locator('#dev-card .stats')).not.toContainText(/[۰-۹]/);
+ await expect(page.locator('.rating-bar').filter({hasText:'پشتکار'})).toBeVisible();
+ await expect(page.locator('.plain-guide')).toHaveCount(0);
+ await page.getByRole('tab',{name:'تنظیمات'}).click();
+ await expect(page.locator('.theme-picker')).toBeVisible();
+ for (const [name,id] of [['شکوفهٔ آسمان','sky-bloom'],['گیلاس نیمه‌شب','cherry-noir'],['هستهٔ گرافیتی','graphite-core']]) {
+   await page.getByRole('radio',{name:new RegExp(name)}).click();
+   await expect(page.locator('html')).toHaveAttribute('data-theme',id);
+   expect(new URL(page.url()).searchParams.get('theme')).toBe(id);
+ }
+ await page.getByRole('radio',{name:/شفق نعنایی/}).click();
+
  await page.getByRole('tab',{name:'گزارش پیشرفت'}).click();
  await expect(page.getByRole('heading',{name:'مسیر امسال، کنار پارسال'})).toBeVisible();
+ await expect(page.getByRole('button',{name:'تحلیل مسیر من'})).toHaveCount(0);
+ await page.locator('.day-cell').first().focus();
+ await expect(page.locator('.calendar-detail')).toContainText('مشارکت');
+ await expect(page.locator('#reports-panel .metric-grid .metric')).toHaveCount(7);
+ await page.screenshot({path:`test-results/reports-${test.info().project.name}.png`,fullPage:true});
+ const reportDownload=page.waitForEvent('download');
+ await page.getByRole('button',{name:'دریافت گزارش'}).click();
+ expect((await reportDownload).suggestedFilename()).toContain('developer-report-');
+
  await page.getByRole('tab',{name:'زمان کار'}).click();
  await page.getByRole('button',{name:'شروع کار',exact:true}).click();
  await expect(page.locator('#timer-clock')).not.toHaveText('00:00:00',{timeout:6000});

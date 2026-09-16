@@ -6,7 +6,7 @@ class UserProfile(models.Model):
     login = models.CharField(max_length=39, unique=True)
     name = models.CharField(max_length=255, blank=True)
     avatar = models.URLField(blank=True)
-    timezone = models.CharField(max_length=80, default="UTC")
+    timezone = models.CharField(max_length=80, default="Asia/Tehran")
     joined = models.BigIntegerField()
     access_token = models.TextField(blank=True)
     card = models.JSONField(null=True, blank=True)

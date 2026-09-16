@@ -94,3 +94,23 @@ class WorkspaceTests(TestCase):
         challenge = query["code_challenge"][0]
         self.assertEqual(len(challenge), 43)
         self.assertNotIn("=", challenge)
+
+    def test_analysis_persists_beyond_daily_window(self):
+        value = {"summary": "saved", "strengths": [], "suggestions": []}
+        Report.objects.create(key="ai:1", value=value, saved=now_ms()-10*86400000)
+        with patch("workspace.views.requests.post") as external:
+            self.assertEqual(self.post("/api/me/ai").json(), value)
+            external.assert_not_called()
+
+    @patch.dict("os.environ", {"GEMINI_API_KEY": "test"})
+    def test_image_daily_limit_is_enforced_on_server(self):
+        Report.objects.create(key="limit:image:1", value={}, saved=now_ms()-3600000)
+        with patch("workspace.views.profile_data", return_value={"user":{},"repos":[]}), patch("workspace.views.requests.post") as external:
+            self.assertEqual(self.post("/api/me/image").status_code, 429)
+            external.assert_not_called()
+
+    def test_timezone_defaults_to_tehran_and_preserves_choice(self):
+        self.assertEqual(self.user.timezone, "Asia/Tehran")
+        self.assertEqual(self.client.get('/api/me/time').json()['timezone'], 'Asia/Tehran')
+        self.assertEqual(self.post('/api/me/timezone', {'timezone':'UTC'}).status_code, 200)
+        self.assertEqual(self.client.get('/api/me/time').json()['timezone'], 'UTC')
