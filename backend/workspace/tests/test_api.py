@@ -146,7 +146,7 @@ class WorkspaceTests(TestCase):
             self.assertEqual(len(publish.call_args.kwargs['card_image'][0]), 3 * 1024 * 1024 + 3)
 
 
-    @patch.dict("os.environ", {"GEMINI_API_KEY": "test", "GEMINI_MODEL": "gemini-3.6-flash"})
+    @patch.dict("os.environ", {"GEMINI_API_KEY": "test", "GEMINI_MODEL": "gemini-3.6-flash"}, clear=False)
     def test_ai_falls_back_when_preferred_model_is_rate_limited(self):
         result = {
             "title": "عنوان",
@@ -161,13 +161,33 @@ class WorkspaceTests(TestCase):
         limited.json.return_value = {}
         ok = MagicMock(ok=True, status_code=200)
         ok.json.return_value = {"candidates": [{"content": {"parts": [{"text": json.dumps(result)}]}}]}
-        with patch("workspace.views.profile_data", return_value={"user": {"login": "developer"}, "profileReadme": "", "repos": [], "projectReadmes": []}), patch("workspace.views.requests.post", side_effect=[limited, ok]) as external:
+        with patch.dict("os.environ", {"AGENTROUTER_API_KEY": "", "ATRIA_API_KEY": ""}, clear=False), patch("workspace.views.profile_data", return_value={"user": {"login": "developer"}, "profileReadme": "", "repos": [], "projectReadmes": []}), patch("workspace.views.requests.post", side_effect=[limited, ok]) as external:
             response = self.post("/api/me/ai")
             self.assertEqual(response.status_code, 200)
             self.assertEqual(response.json()["title"], "عنوان")
+            self.assertEqual(response.json()["provider"], "Gemini")
             self.assertEqual(external.call_count, 2)
             self.assertIn("gemini-3.6-flash", external.call_args_list[0].args[0])
             self.assertIn("gemini-3.5-flash", external.call_args_list[1].args[0])
+
+    @patch.dict("os.environ", {"GEMINI_API_KEY": "", "AGENTROUTER_API_KEY": "", "ATRIA_API_KEY": "atr_test"}, clear=False)
+    def test_ai_falls_back_to_atria_when_gemini_unavailable(self):
+        result = {
+            "title": "عنوان اتریا",
+            "summary": "تحلیل",
+            "resume": ["یک", "دو", "سه"],
+            "skills": [{"name": "Python", "evidence": "README", "source": "self_reported"}],
+            "strengths": [],
+            "suggestions": [],
+            "imagePrompt": "A developer robot",
+        }
+        ok = MagicMock(ok=True, status_code=200)
+        ok.json.return_value = {"choices": [{"message": {"content": json.dumps(result)}}]}
+        with patch("workspace.views.profile_data", return_value={"user": {"login": "developer"}, "profileReadme": "", "repos": [], "projectReadmes": []}), patch("workspace.views.requests.post", return_value=ok) as external:
+            response = self.post("/api/me/ai")
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(response.json()["provider"], "Atria")
+            self.assertIn("atria-asi.ai", external.call_args.args[0])
 
     @patch.dict("os.environ", {"GEMINI_API_KEY": "test"})
     def test_one_ai_generation_serves_analysis_resume_and_public_card(self):

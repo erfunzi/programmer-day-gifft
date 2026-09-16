@@ -112,7 +112,7 @@ def normalize_resume(resume):
     return resume
 
 
-def clean_ai_value(value):
+def clean_ai_value(value, provider="Gemini"):
     if not isinstance(value, dict):
         return None
     summary = value.get("summary")
@@ -139,7 +139,13 @@ def clean_ai_value(value):
         if isinstance(name, str) and isinstance(evidence, str) and source in {"project", "self_reported"}:
             cleaned_skills.append({"name": name, "evidence": evidence, "source": source})
     if not cleaned_skills:
-        return None
+        cleaned_skills = [
+            {
+                "name": "Public GitHub showcase",
+                "evidence": "No public repositories or README evidence were available in the provided profile data.",
+                "source": "self_reported",
+            }
+        ]
     return {
         "schemaVersion": 2,
         "title": value["title"][:160],
@@ -150,7 +156,7 @@ def clean_ai_value(value):
         "suggestions": [item[:400] for item in suggestions if isinstance(item, str)][:3],
         "imagePrompt": (image_prompt or "")[:1200],
         "generatedAt": now_ms(),
-        "provider": "Gemini",
+        "provider": str(provider or "Gemini")[:40],
     }
 
 
@@ -159,7 +165,7 @@ class GitHubAuthExpired(Exception):
 
 
 class AIQuotaExceeded(requests.RequestException):
-    """Raised when every candidate Gemini text model is quota-exhausted."""
+    """Raised when every configured AI provider is unavailable or exhausted."""
 
 
 def gemini_text_models():
@@ -178,9 +184,63 @@ def gemini_text_models():
     return ordered
 
 
-def gemini_generate_json(prompt_text):
+def extract_json_object(text):
+    """Parse model JSON, including fenced markdown wrappers."""
+    if not isinstance(text, str):
+        raise ValueError("AI response was not text")
+    cleaned = text.strip()
+    if cleaned.startswith("```"):
+        cleaned = re.sub(r"^```(?:json)?\s*", "", cleaned, count=1, flags=re.IGNORECASE)
+        cleaned = re.sub(r"\s*```$", "", cleaned)
+    try:
+        return json.loads(cleaned)
+    except json.JSONDecodeError:
+        start, end = cleaned.find("{"), cleaned.rfind("}")
+        if start >= 0 and end > start:
+            return json.loads(cleaned[start : end + 1])
+        raise
+
+
+def openai_compatible_chat(base_url, api_key, model, prompt_text, timeout=90):
+    """Call an OpenAI-compatible /chat/completions endpoint and return message text."""
+    url = base_url.rstrip("/") + "/chat/completions"
+    response = requests.post(
+        url,
+        headers={
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json",
+        },
+        json={
+            "model": model,
+            "temperature": 0.4,
+            "messages": [
+                {
+                    "role": "system",
+                    "content": "You output only one valid JSON object. No prose, no markdown fences.",
+                },
+                {"role": "user", "content": prompt_text},
+            ],
+        },
+        timeout=timeout,
+    )
+    if not response.ok:
+        raise requests.RequestException(f"AI response failed ({response.status_code})")
+    content = (
+        response.json()
+        .get("choices", [{}])[0]
+        .get("message", {})
+        .get("content", "")
+    )
+    if not isinstance(content, str) or not content.strip():
+        raise requests.RequestException("AI response was empty")
+    return content
+
+
+def gemini_generate_text(prompt_text):
     """Call Gemini generateContent, falling back across models on 404/429/503."""
     key = os.getenv("GEMINI_API_KEY")
+    if not key:
+        raise AIQuotaExceeded("Gemini is not configured")
     payload = {
         "contents": [{"parts": [{"text": prompt_text}]}],
         "generationConfig": {"responseMimeType": "application/json"},
@@ -197,15 +257,67 @@ def gemini_generate_json(prompt_text):
         )
         last_status = response.status_code
         if response.ok:
-            return response.json()
+            text = (
+                response.json()
+                .get("candidates", [{}])[0]
+                .get("content", {})
+                .get("parts", [{}])[0]
+                .get("text", "")
+            )
+            if text:
+                return text
+            continue
         if response.status_code in {404, 429, 503}:
             saw_retryable = True
             continue
         raise requests.RequestException("AI response failed")
     if last_status == 429 or saw_retryable:
-        raise AIQuotaExceeded("AI quota exhausted")
+        raise AIQuotaExceeded("Gemini quota exhausted")
     raise requests.RequestException("AI response failed")
 
+
+def agentrouter_generate_text(prompt_text):
+    key = os.getenv("AGENTROUTER_API_KEY")
+    if not key:
+        raise AIQuotaExceeded("AgentRouter is not configured")
+    base = (os.getenv("AGENTROUTER_BASE_URL") or "https://agentrouter.org/v1").strip()
+    model = (os.getenv("AGENTROUTER_MODEL") or "gpt-4o-mini").strip()
+    return openai_compatible_chat(base, key, model, prompt_text)
+
+
+def atria_generate_text(prompt_text):
+    key = os.getenv("ATRIA_API_KEY")
+    if not key:
+        raise AIQuotaExceeded("Atria is not configured")
+    base = (os.getenv("ATRIA_BASE_URL") or "https://api.atria-asi.ai/v1").strip()
+    model = (os.getenv("ATRIA_MODEL") or "Atria-Dawn-Preview").strip()
+    return openai_compatible_chat(base, key, model, prompt_text, timeout=120)
+
+
+def generate_ai_text(prompt_text):
+    """Gemini first, then AgentRouter, then Atria. Returns (text, provider)."""
+    providers = []
+    if os.getenv("GEMINI_API_KEY"):
+        providers.append(("Gemini", gemini_generate_text))
+    if os.getenv("AGENTROUTER_API_KEY"):
+        providers.append(("AgentRouter", agentrouter_generate_text))
+    if os.getenv("ATRIA_API_KEY"):
+        providers.append(("Atria", atria_generate_text))
+    if not providers:
+        raise RuntimeError("AI is not configured")
+    last_error = None
+    for name, caller in providers:
+        try:
+            return caller(prompt_text), name
+        except AIQuotaExceeded as exc:
+            last_error = exc
+            continue
+        except requests.RequestException as exc:
+            last_error = exc
+            continue
+    if isinstance(last_error, AIQuotaExceeded):
+        raise last_error
+    raise requests.RequestException(str(last_error or "AI response failed"))
 
 
 def api(view):
@@ -719,7 +831,7 @@ def generate_ai(user):
     cached = Report.objects.filter(key=f"ai:{user.id}").first()
     if cached and isinstance(cached.value, dict) and cached.value.get("schemaVersion") == 2:
         return cached.value
-    if not os.getenv("GEMINI_API_KEY"):
+    if not (os.getenv("GEMINI_API_KEY") or os.getenv("AGENTROUTER_API_KEY") or os.getenv("ATRIA_API_KEY")):
         raise RuntimeError("AI is not configured")
     source = profile_data(user)
     evidence = {
@@ -731,7 +843,7 @@ def generate_ai(user):
     prompt = (
         "Produce ONE complete reusable Persian developer profile JSON. Required fields: title (unique professional headline), "
         "summary (project analysis for nontechnical readers), resume (3-5 employer-facing paragraphs about demonstrated abilities and practical value), "
-        "skills (array of {name, evidence, source}, source is project or self_reported), strengths (array), suggestions (array), "
+        "skills (array of {name, evidence, source}, source is project or self_reported; include at least one item), strengths (array), suggestions (array), "
         "imagePrompt (English gender-neutral 3D collectible). Read profileReadme FIRST: it is the person's own account-name repository, "
         "can contain their only skill evidence. Distinguish self-reported skills from demonstrated project work. Do not mistake a profile README "
         "for a software product. For sparse accounts without skills evidence use kind light humor about an empty public showcase, never insult or "
@@ -740,10 +852,9 @@ def generate_ai(user):
         "not be invented or recomputed; only interpret provided facts. Return all fields in one JSON response. Evidence: "
         + json.dumps(evidence, ensure_ascii=False)
     )
-    raw = gemini_generate_json(prompt)
-    text = raw.get("candidates", [{}])[0].get("content", {}).get("parts", [{}])[0].get("text", "{}")
+    text, provider = generate_ai_text(prompt)
     try:
-        value = clean_ai_value(json.loads(text))
+        value = clean_ai_value(extract_json_object(text), provider=provider)
     except (json.JSONDecodeError, TypeError, ValueError):
         value = None
     if not value:
