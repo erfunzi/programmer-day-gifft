@@ -35,36 +35,73 @@ export function DeveloperCard({
   });
   const telegramPublish = useMutation({
     mutationFn: async () => {
-      const card = await exportCard(cardRef.current, u.login, { download: false });
+      const card = await exportCard(cardRef.current, u.login, {
+        download: false,
+      });
       const form = new FormData();
       form.append("theme", theme);
       form.append("image", card, `developer-card-${u.login}.png`);
       return upload("/api/me/telegram/publish", form);
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["telegram-status"] }),
+    onSuccess: () => {
+      setStatus("کارت در کانال تلگرام منتشر شد ✓");
+      queryClient.invalidateQueries({ queryKey: ["telegram-status"] });
+    },
+    onError: (error) => {
+      if (error?.status === 401) {
+        location.assign("/?auth_error=expired");
+        return;
+      }
+      setStatus(error?.message || "انتشار تلگرام انجام نشد.");
+    },
   });
   const shareURL = `${location.origin}/?u=${encodeURIComponent(u.login)}&theme=${encodeURIComponent(theme)}`;
   useEffect(() => {
     if (
       !telegram.data?.configured ||
+      !telegram.data?.linked ||
+      (telegram.data?.required && !telegram.data?.joined) ||
       !account ||
       visitor ||
       demo ||
       telegramAutoPublished.current
-    ) return;
+    )
+      return;
     telegramAutoPublished.current = true;
     (async () => {
       try {
-        const card = await exportCard(cardRef.current, u.login, { download: false });
+        const card = await exportCard(cardRef.current, u.login, {
+          download: false,
+        });
         const form = new FormData();
         form.append("theme", theme);
         form.append("image", card, `developer-card-${u.login}.png`);
         await upload("/api/me/telegram/publish", form);
-      } catch {
-        // The card remains usable if Telegram is not linked or temporarily unavailable.
+        setStatus("کارت در کانال تلگرام منتشر شد ✓");
+        queryClient.invalidateQueries({ queryKey: ["telegram-status"] });
+      } catch (error) {
+        if (error?.status === 401) {
+          location.assign("/?auth_error=expired");
+          return;
+        }
+        setStatus(
+          error?.message ||
+            "انتشار تلگرام انجام نشد؛ اتصال تلگرام و عضویت کانال را چک کن.",
+        );
       }
     })();
-  }, [telegram.data?.configured, account, visitor, demo, theme, u.login]);
+  }, [
+    telegram.data?.configured,
+    telegram.data?.linked,
+    telegram.data?.joined,
+    telegram.data?.required,
+    account,
+    visitor,
+    demo,
+    theme,
+    u.login,
+    queryClient,
+  ]);
   useEffect(() => {
     let active = true;
     QRCode.toDataURL(

@@ -183,6 +183,30 @@ def render_caption(profile, theme):
     )
 
 
+def profile_for_caption(user):
+    """Build caption data without requiring a live GitHub token."""
+    from .models import Report
+
+    cached = Report.objects.filter(key=f"profile:{user.id}").first()
+    if cached and isinstance(cached.value, dict) and cached.value.get("user"):
+        return cached.value
+    if isinstance(user.card, dict) and user.card.get("user"):
+        return {"user": user.card["user"], "repos": user.card.get("repos") or []}
+    try:
+        return profile_data(user)
+    except Exception:
+        return {
+            "user": {
+                "login": user.login,
+                "name": user.name or user.login,
+                "public_repos": 0,
+                "followers": 0,
+                "avatar_url": user.avatar,
+            },
+            "repos": [],
+        }
+
+
 def publish(user, theme="aurora-mint", refresh=False, card_image=None):
     if not configured():
         return None
@@ -195,7 +219,7 @@ def publish(user, theme="aurora-mint", refresh=False, card_image=None):
         return {"message_id": existing.message_id, "chat": {"id": existing.chat_id}}
     if existing and refresh:
         delete_publication(user)
-    profile = profile_data(user)
+    profile = profile_for_caption(user)
     link = TelegramLink.objects.filter(user=user, telegram_id__isnull=False).first()
     caption = render_caption(profile, theme)
     markup = {

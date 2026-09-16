@@ -72,7 +72,14 @@ export default function App() {
     state: "درخواست ورود منقضی یا نامعتبر بود. دوباره وارد شو.",
     cancelled: "ورود تکمیل نشد. هر وقت خواستی دوباره امتحان کن.",
     exchange: "ارتباط ورود با GitHub کامل نشد. Client ID و Client Secret اپ OAuth را دوباره چک کن.",
+    expired: "نشست GitHub منقضی شده؛ دوباره وارد شو تا کارت و تلگرام کار کنند.",
   };
+  useEffect(() => {
+    if (profile.error?.status === 401 && !visitor && !demo) {
+      client.clear();
+      location.assign("/?auth_error=expired");
+    }
+  }, [profile.error, visitor, demo, client]);
   // Logged-in users never see the GitHub login entry again until logout/expiry.
   const showEntry =
     !demo && !visitor && !account && !sessionPending && !data;

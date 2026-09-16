@@ -107,6 +107,10 @@ def clean_ai_value(value):
     }
 
 
+class GitHubAuthExpired(Exception):
+    """Raised when the stored GitHub OAuth token is revoked or invalid."""
+
+
 def api(view):
     @wraps(view)
     def wrapped(request, *args, **kwargs):
@@ -133,6 +137,10 @@ def api(view):
                     return json_error("درخواست بیش از حد بزرگ است.", 413)
             response = view(request, *args, **kwargs)
             response["Cache-Control"] = "no-store"
+            return response
+        except GitHubAuthExpired as exc:
+            response = json_error(str(exc) or "اتصال GitHub منقضی شده؛ دوباره وارد شو.", 401)
+            expire_session(request, response)
             return response
         except requests.RequestException as exc:
             try:
@@ -168,6 +176,8 @@ def api(view):
 
 
 def github(path, access_token):
+    if not access_token:
+        raise GitHubAuthExpired("اتصال GitHub منقضی شده؛ دوباره وارد شو.")
     response = requests.get(
         "https://api.github.com" + path,
         headers={
@@ -178,7 +188,7 @@ def github(path, access_token):
         timeout=20,
     )
     if response.status_code == 401:
-        raise ValueError("اتصال GitHub منقضی شده؛ دوباره وارد شو.")
+        raise GitHubAuthExpired("اتصال GitHub منقضی شده؛ دوباره وارد شو.")
     response.raise_for_status()
     return response.json()
 
@@ -194,9 +204,22 @@ def session_user(request):
     )
     if not row:
         return None
-    row.user._access = reveal(row.token)
+    access = reveal(row.token)
+    if not access:
+        UserSession.objects.filter(id=row.id).delete()
+        return None
+    row.user._access = access
     row._session_id = row.id
     return row.user
+
+
+def expire_session(request, response=None):
+    raw = request.COOKIES.get("dc_session")
+    if raw:
+        UserSession.objects.filter(id=digest(raw)).delete()
+    if response is not None:
+        clear_cookie(response, "dc_session")
+    return response
 
 
 def cookie(response, name, value, max_age=604800):
