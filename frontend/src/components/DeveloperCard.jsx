@@ -42,17 +42,18 @@ export function DeveloperCard({
     enabled: !!account && !visitor && !demo,
   });
   const telegramPublish = useMutation({
-    mutationFn: async () => {
+    mutationFn: async (mode = "manual") => {
       const card = await exportCard(cardRef.current, u.login, {
         download: false,
       });
       const form = new FormData();
+      form.append("mode", mode);
       form.append("theme", theme);
       form.append("image", card, `developer-card-${u.login}.png`);
       return upload("/api/me/telegram/publish", form);
     },
-    onSuccess: () => {
-      setStatus("کارت در کانال تلگرام منتشر شد ✓");
+    onSuccess: (result) => {
+      if (result.created) setStatus(telegram.data?.joined ? "کارت در کانال تلگرام منتشر شد ✓" : "کارتت در کانال تلگرام منتشر شد. برای اینکه حذف نشود، حسابت را از تنظیمات به تلگرام وصل کن و عضو کانال ما شو؛ در غیر این صورت تا ۲ ساعت دیگر حذف می‌شود.");
       queryClient.invalidateQueries({ queryKey: ["telegram-status"] });
     },
     onError: (error) => {
@@ -65,51 +66,10 @@ export function DeveloperCard({
   });
   const shareURL = `${location.origin}/?u=${encodeURIComponent(u.login)}&theme=${encodeURIComponent(theme)}`;
   useEffect(() => {
-    if (
-      !telegram.data?.configured ||
-      !telegram.data?.linked ||
-      (telegram.data?.required && !telegram.data?.joined) ||
-      !account ||
-      visitor ||
-      demo ||
-      telegramAutoPublished.current
-    )
-      return;
+    if (!telegram.data?.configured || !telegram.data?.initialPublish || !account || visitor || demo || !qr || telegramAutoPublished.current) return;
     telegramAutoPublished.current = true;
-    (async () => {
-      try {
-        const card = await exportCard(cardRef.current, u.login, {
-          download: false,
-        });
-        const form = new FormData();
-        form.append("theme", theme);
-        form.append("image", card, `developer-card-${u.login}.png`);
-        await upload("/api/me/telegram/publish", form);
-        setStatus("کارت در کانال تلگرام منتشر شد ✓");
-        queryClient.invalidateQueries({ queryKey: ["telegram-status"] });
-      } catch (error) {
-        if (error?.status === 401) {
-          location.assign("/?auth_error=expired");
-          return;
-        }
-        setStatus(
-          error?.message ||
-            "انتشار تلگرام انجام نشد؛ اتصال تلگرام و عضویت کانال را چک کن.",
-        );
-      }
-    })();
-  }, [
-    telegram.data?.configured,
-    telegram.data?.linked,
-    telegram.data?.joined,
-    telegram.data?.required,
-    account,
-    visitor,
-    demo,
-    theme,
-    u.login,
-    queryClient,
-  ]);
+    telegramPublish.mutate("initial");
+  }, [telegram.data?.configured, telegram.data?.initialPublish, account, visitor, demo, qr]);
   useEffect(() => {
     let active = true;
     QRCode.toDataURL(
@@ -350,17 +310,17 @@ export function DeveloperCard({
             چاپ
           </Button>
         </div>
+        {!demo && !visitor && config.data?.imageReady && <Button variant="secondary" disabled={generateImage.isPending || introduction.isFetching} onClick={()=>generateImage.mutate()}>{generateImage.isPending ? "در حال ساخت کاراکتر…" : "ساخت کاراکتر از تحلیل"}</Button>}
+        {!visitor && !demo && telegram.data?.configured && (
+          <Button variant="secondary" disabled={telegramPublish.isPending || !telegram.data.canPublish} onClick={() => telegramPublish.mutate("manual")}>{telegramPublish.isPending ? "در حال انتشار…" : "انتشار در کانال تلگرام"}</Button>
+        )}
+
+      </div>
         {narrative?.resume && <section className="surface developer-introduction" aria-label="معرفی حرفه‌ای">
           <h3>دربارهٔ {u.name || u.login}</h3>
           {narrative.resume.map((line,i)=><p key={i}>{line}</p>)}
           <div className="resume-skills">{narrative.skills?.map((skill,i)=><div key={i}><strong>{skill.name}</strong><p>{skill.evidence}</p><small>{skill.source === "self_reported" ? "بر اساس معرفی خود فرد" : "بر اساس پروژه‌ها"}</small></div>)}</div>
         </section>}
-        {!demo && !visitor && config.data?.imageReady && <Button variant="secondary" disabled={generateImage.isPending || introduction.isFetching} onClick={()=>generateImage.mutate()}>{generateImage.isPending ? "در حال ساخت کاراکتر…" : "ساخت کاراکتر از تحلیل"}</Button>}
-        {!visitor && !demo && telegram.data?.configured && telegram.data.linked && (
-          <Button variant="secondary" disabled={telegramPublish.isPending} onClick={() => telegramPublish.mutate()}>انتشار با این تم در تلگرام</Button>
-        )}
-
-      </div>
     </div>
   );
 }

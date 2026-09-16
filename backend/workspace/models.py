@@ -63,6 +63,8 @@ class TelegramLink(models.Model):
 
 
 class TelegramPublication(models.Model):
+    deleted = models.BooleanField(default=False)
+    membership_checked = models.BooleanField(default=False)
     user = models.OneToOneField(UserProfile, primary_key=True, on_delete=models.CASCADE)
     chat_id = models.CharField(max_length=255)
     message_id = models.BigIntegerField()

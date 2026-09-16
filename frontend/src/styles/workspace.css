@@ -40,3 +40,5 @@ html[data-theme] header{border-color:var(--theme-line)}
 .toast{display:flex;align-items:center;gap:16px;padding:16px 20px;background:var(--theme-surface);color:var(--theme-page-ink);border:1px solid var(--theme-accent);border-radius:12px;box-shadow:0 8px 32px #0003;line-height:1.8;pointer-events:auto;overflow-wrap:anywhere}
 .toast span{flex:1}.toast button{background:transparent;color:var(--theme-accent);border:0;font-size:24px;min-width:32px;cursor:pointer}
 @media print{.toast-region{display:none!important}}
+
+.result-grid > .developer-introduction{grid-column:1 / -1;width:100%;direction:rtl;margin-top:0}

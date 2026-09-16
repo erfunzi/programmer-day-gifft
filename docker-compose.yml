@@ -27,6 +27,19 @@ services:
       postgres:
         condition: service_healthy
 
+  telegram-maintenance:
+    build: ./backend
+    restart: unless-stopped
+    command: ["./entrypoint.sh", "python", "manage.py", "enforce_telegram_membership", "--loop"]
+    env_file: .env
+    environment:
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: "5432"
+      DJANGO_SETTINGS_MODULE: config.settings.production
+    depends_on:
+      postgres:
+        condition: service_healthy
+
   frontend:
     build: ./frontend
     restart: unless-stopped

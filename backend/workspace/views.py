@@ -582,11 +582,12 @@ def telegram_status(request):
     user = session_user(request)
     if not user:
         return json_error("برای ادامه با GitHub وارد شو.", 401)
-    from .telegram import channel_url, configured, member_status
+    from .telegram import channel_url, configured, member_status, publication_state
     link = user.telegramlink_set.filter(telegram_id__isnull=False).first()
     status = member_status(link.telegram_id) if link else None
     return JsonResponse(
         {
+            **publication_state(user),
             "configured": configured(),
             "linked": bool(link),
             "joined": status in {"creator", "administrator", "member", "restricted"},
@@ -616,7 +617,7 @@ def telegram_publish(request):
     user = session_user(request)
     if not user:
         return json_error("برای ادامه با GitHub وارد شو.", 401)
-    from .telegram import publish
+    from .telegram import publish, PublicationUnavailable, TelegramAPIError
     form_data = request.POST if request.content_type.startswith("multipart/form-data") else payload(request)
     theme = str(form_data.get("theme", "aurora-mint"))
     if not re.fullmatch(r"[a-z0-9-]{2,40}", theme):
@@ -630,7 +631,11 @@ def telegram_publish(request):
         image_bytes = card_image.read()
         image_mime = card_image.content_type
     try:
-        result = publish(user, theme, refresh=True, card_image=(image_bytes, image_mime) if image_bytes else None)
+        result = publish(user, theme, refresh=form_data.get("mode") != "initial", card_image=(image_bytes, image_mime) if image_bytes else None)
+    except PublicationUnavailable as exc:
+        return json_error(str(exc), 409)
+    except TelegramAPIError:
+        return json_error("بررسی یا انتشار پیام تلگرام انجام نشد؛ دوباره امتحان کن.", 503)
     except requests.RequestException:
         return json_error("انتشار در کانال تلگرام انجام نشد.", 503)
     except RuntimeError as exc:
@@ -639,7 +644,7 @@ def telegram_publish(request):
         return json_error("تلگرام هنوز تنظیم نشده است.", 503)
     if not result and os.getenv("TELEGRAM_REQUIRE_JOIN", "false").lower() == "true":
         return json_error("ابتدا حساب تلگرام را وصل کن و در کانال عضو شو.", 403)
-    return JsonResponse({"published": bool(result), "messageId": result.get("message_id") if result else None})
+    return JsonResponse({"published": bool(result), "created": result.get("created", True) if result else False, "messageId": result.get("message_id") if result else None})
 
 
 @csrf_exempt

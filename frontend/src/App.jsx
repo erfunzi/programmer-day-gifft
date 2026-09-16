@@ -83,8 +83,6 @@ export default function App() {
   // Logged-in users never see the GitHub login entry again until logout/expiry.
   const showEntry =
     !demo && !visitor && !account && !sessionPending && !data;
-  const openingWorkspace =
-    !demo && !visitor && !!account && !data && !profile.error;
   return (
     <>
       <div className="ambient" aria-hidden="true" />
@@ -122,13 +120,7 @@ export default function App() {
             }
           />
         )}
-        {(sessionPending || openingWorkspace) && (
-          <p role="status" className="hint">
-            {sessionPending
-              ? "در حال بررسی وضعیت ورود…"
-              : "وارد شدی؛ کارت و گزارش‌ها آماده‌ می‌شوند…"}
-          </p>
-        )}
+        {sessionPending && <p role="status" className="hint">در حال بررسی وضعیت ورود…</p>}
 
         {data && (
           <section id="workspace">

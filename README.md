@@ -210,3 +210,19 @@ Built with appreciation for the people who ship quietly and persistently.
 **Creator:** [@erfunzi](https://github.com/erfunzi)
 
 Happy Programmer’s Day. Keep building. ✳
+
+### Telegram publication lifecycle
+
+The first card publication is automatic once per account. Refreshing or signing in again does not repost it. Manual republication requires seven days since the last publication and confirmation that the previous channel message is absent. Deleted publications retain their timestamp.
+
+The default `telegram-maintenance` Compose service checks membership deadlines every minute, independently of browser sessions. After the two-hour grace period, unlinked accounts and confirmed non-members have their card removed. Membership API failures are retried. The bot needs channel administration rights to check membership and delete its messages.
+
+Apply the lifecycle migration before starting the updated services:
+
+```sh
+docker compose build
+docker compose run --rm backend python manage.py migrate
+docker compose up -d
+```
+
+For deployments without Compose, supervise `python manage.py enforce_telegram_membership --loop` alongside the web server. One-off checks use the same command without `--loop`.

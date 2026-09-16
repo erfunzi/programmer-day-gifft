@@ -1,11 +1,13 @@
+import json
 import html
 import os
 import re
 
 import requests
 from django.conf import settings
+from django.db import transaction
 
-from .models import TelegramLink, TelegramPublication
+from .models import TelegramLink, TelegramPublication, UserProfile
 from .views import now_ms, profile_data, token
 
 
@@ -72,10 +74,10 @@ def bot_call(method, data=None, files=None, timeout=25):
         files=files,
         timeout=timeout,
     )
-    response.raise_for_status()
     body = response.json()
     if not body.get("ok"):
-        raise RuntimeError(body.get("description", "Telegram API failed"))
+        raise TelegramAPIError(body.get("description", "Telegram API failed"))
+    response.raise_for_status()
     return body.get("result")
 
 
@@ -207,26 +209,75 @@ def profile_for_caption(user):
         }
 
 
+WEEK = 7 * 86400000
+GRACE = 2 * 3600000
+MEMBERS = {"creator", "administrator", "member", "restricted"}
+
+class TelegramAPIError(RuntimeError):
+    pass
+
+class PublicationUnavailable(RuntimeError):
+    pass
+
+
+def publication_markup(user, theme):
+    return {"inline_keyboard": [[{"text": "➡️  مشاهدهٔ کارت کامل", "url": f"{settings.APP_ORIGIN}/?u={user.login}&theme={theme}"}]]}
+
+
+def message_present(publication):
+    if publication.deleted:
+        return False
+    try:
+        api_call("editMessageReplyMarkup", {
+            "chat_id": publication.chat_id, "message_id": publication.message_id,
+            "reply_markup": json.dumps(publication_markup(publication.user, publication.theme)),
+        })
+    except TelegramAPIError as exc:
+        description = str(exc).lower()
+        if "message is not modified" in description:
+            return True
+        if "message to edit not found" in description or "message not found" in description:
+            publication.deleted = True
+            publication.save(update_fields=["deleted"])
+            return False
+        raise
+    return True
+
+
+@transaction.atomic
+def publication_state(user):
+    UserProfile.objects.select_for_update().get(pk=user.pk)
+    existing = TelegramPublication.objects.filter(user=user).first()
+    if not existing:
+        return {"initialPublish": True, "canPublish": True, "nextPublishAt": None, "messagePresent": False}
+    due = existing.created + WEEK
+    present = not existing.deleted
+    if due <= now_ms() and present:
+        # Fail closed when Telegram cannot confirm whether the old post exists.
+        try:
+            present = message_present(existing)
+        except (requests.RequestException, RuntimeError, ValueError):
+            present = True
+    return {"initialPublish": False, "canPublish": due <= now_ms() and not present, "nextPublishAt": due, "messagePresent": present}
+
+
+@transaction.atomic
 def publish(user, theme="aurora-mint", refresh=False, card_image=None):
     if not configured():
-        return None
-    if os.getenv("TELEGRAM_REQUIRE_JOIN", "false").lower() == "true":
-        link = TelegramLink.objects.filter(user=user, telegram_id__isnull=False).first()
-        if not link or member_status(link.telegram_id) not in {"creator", "administrator", "member", "restricted"}:
-            return None
+        raise RuntimeError("Telegram is not configured")
+    UserProfile.objects.select_for_update().get(pk=user.pk)
     existing = TelegramPublication.objects.filter(user=user).first()
-    if existing and not refresh:
-        return {"message_id": existing.message_id, "chat": {"id": existing.chat_id}}
-    if existing and refresh:
-        delete_publication(user)
+    if existing:
+        if not refresh:
+            return {"message_id": existing.message_id, "created": False}
+        if now_ms() < existing.created + WEEK:
+            raise PublicationUnavailable("انتشار مجدد پس از گذشت ۷ روز از آخرین انتشار امکان‌پذیر است.")
+        if message_present(existing):
+            raise PublicationUnavailable("کارتت هنوز در کانال موجود است؛ انتشار دوباره لازم نیست.")
     profile = profile_for_caption(user)
     link = TelegramLink.objects.filter(user=user, telegram_id__isnull=False).first()
     caption = render_caption(profile, theme)
-    markup = {
-        "inline_keyboard": [
-            [{"text": "➡️  مشاهدهٔ کارت کامل", "url": f"{settings.APP_ORIGIN}/?u={user.login}&theme={theme}"}],
-        ]
-    }
+    markup = publication_markup(user, theme)
     data = {
         "chat_id": channel_id(),
         "caption": caption,
@@ -249,21 +300,46 @@ def publish(user, theme="aurora-mint", refresh=False, card_image=None):
             "telegram_id": link.telegram_id if link else None,
             "theme": theme,
             "created": now_ms(),
+            "deleted": False,
+            "membership_checked": False,
         },
     )
-    return result
+    return {**result, "created": True}
 
 
+@transaction.atomic
 def delete_publication(user):
-    publication = TelegramPublication.objects.filter(user=user).first()
+    UserProfile.objects.select_for_update().get(pk=user.pk)
+    publication = TelegramPublication.objects.filter(user=user, deleted=False).first()
     if not publication or not configured():
         return False
     try:
         api_call("deleteMessage", {"chat_id": publication.chat_id, "message_id": publication.message_id})
-    except (requests.RequestException, RuntimeError):
-        pass
-    publication.delete()
+    except TelegramAPIError as exc:
+        if "message to delete not found" not in str(exc).lower():
+            return False
+    except (requests.RequestException, RuntimeError, ValueError):
+        return False
+    publication.deleted = True
+    publication.save(update_fields=["deleted"])
     return True
+
+
+def enforce_membership_deadlines():
+    for user_id in TelegramPublication.objects.filter(deleted=False, membership_checked=False, created__lte=now_ms()-GRACE).values_list("user_id", flat=True):
+        with transaction.atomic():
+            user = UserProfile.objects.select_for_update().get(pk=user_id)
+            publication = TelegramPublication.objects.get(user=user)
+            if publication.deleted or publication.membership_checked or publication.created > now_ms()-GRACE:
+                continue
+            link = TelegramLink.objects.filter(user=user, telegram_id__isnull=False).first()
+            status = member_status(link.telegram_id) if link else "left"
+            if status in MEMBERS:
+                publication.membership_checked = True
+                publication.save(update_fields=["membership_checked"])
+            elif status == "left":
+                delete_publication(user)
+            # Unknown membership is retried; outages are not treated as non-membership.
 
 
 def member_status(telegram_id):
@@ -364,5 +440,5 @@ def handle_update(update):
     if new_status in {"left", "kicked"}:
         telegram_id = changed.get("new_chat_member", {}).get("user", {}).get("id")
         publication = TelegramPublication.objects.filter(telegram_id=telegram_id).select_related("user").first()
-        if publication:
+        if publication and publication.created + GRACE <= now_ms():
             delete_publication(publication.user)

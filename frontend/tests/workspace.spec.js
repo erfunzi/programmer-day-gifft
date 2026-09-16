@@ -88,3 +88,36 @@ test('public card copies its themed link and dismisses the toast after five seco
  await copy.click();
  await expect(page.locator('.toast')).toBeVisible();
 });
+
+test('Telegram initial publication survives reload and later publication requires a click', async ({page}) => {
+ const {sample} = await import('../src/lib/sample.js');
+ let sent=0, state={configured:true, linked:false, joined:false, initialPublish:true,canPublish:true};
+ await page.route('**/api/me',r=>r.fulfill({json:{user:{id:1,login:sample.user.login}}}));
+ await page.route('**/api/me/profile',r=>r.fulfill({json:sample}));
+ await page.route('**/api/me/time',r=>r.fulfill({json:{timezone:'Asia/Tehran',active:null,history:[],daily:{},total:0,today:0,elapsedDays:1,averagePerCalendarDay:0,activeDays:0}}));
+ await page.route('**/api/me/ai',r=>r.fulfill({json:{title:'معرفی',summary:'تحلیل',resume:['معرفی حرفه‌ای نمونه'],skills:[]}}));
+ await page.route('**/api/me/image?*',r=>r.fulfill({status:404,body:''}));
+ await page.route('**/api/me/telegram',r=>r.fulfill({json:state}));
+ await page.route('**/api/me/telegram/publish',r=>{
+   sent++;
+   state={...state,initialPublish:false,canPublish:false,messagePresent:true};
+   return r.fulfill({json:{published:true,created:true,messageId:sent}});
+ });
+ await page.goto('/?theme=solar-forge');
+ await expect.poll(()=>sent).toBe(1);
+ await expect(page.locator('.toast')).toContainText('۲ ساعت');
+ const box=await page.locator('.developer-introduction').boundingBox();
+ const grid=await page.locator('.result-grid').boundingBox();
+ expect(Math.abs(box.width-grid.width)).toBeLessThan(2);
+ await page.reload();
+ await expect(page.getByRole('button',{name:'انتشار در کانال تلگرام',exact:true})).toBeDisabled();
+ expect(sent).toBe(1);
+ state={...state,canPublish:true,messagePresent:false};
+ await page.reload();
+ const publish=page.getByRole('button',{name:'انتشار در کانال تلگرام',exact:true});
+ await expect(publish).toBeEnabled();
+ expect(sent).toBe(1);
+ await publish.click();
+ await expect.poll(()=>sent).toBe(2);
+ await expect(page.getByText('وارد شدی؛ کارت و گزارش‌ها آماده‌ می‌شوند…')).toHaveCount(0);
+});
