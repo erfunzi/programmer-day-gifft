@@ -87,6 +87,31 @@ def reserve_report(key, interval):
     return True
 
 
+def normalize_resume(resume):
+    """Gemini sometimes returns resume as one multi-paragraph string."""
+    if isinstance(resume, str):
+        parts = [part.strip() for part in re.split(r"\n\s*\n", resume) if part.strip()]
+        if len(parts) < 3:
+            sentences = [s.strip() for s in re.split(r"(?<=[.؟!])\s+", resume) if s.strip()]
+            if len(sentences) >= 3:
+                groups = 3 if len(sentences) < 6 else min(5, len(sentences) // 2)
+                size = max(1, (len(sentences) + groups - 1) // groups)
+                parts = [
+                    " ".join(sentences[i : i + size]).strip()
+                    for i in range(0, len(sentences), size)
+                ]
+                parts = [part for part in parts if part][:5]
+        resume = parts
+    if not isinstance(resume, list):
+        return None
+    resume = [item.strip() for item in resume if isinstance(item, str) and item.strip()]
+    if len(resume) > 5:
+        resume = resume[:5]
+    if not 3 <= len(resume) <= 5:
+        return None
+    return resume
+
+
 def clean_ai_value(value):
     if not isinstance(value, dict):
         return None
@@ -100,15 +125,26 @@ def clean_ai_value(value):
         return None
     if not isinstance(value.get("title"), str) or not value["title"].strip():
         return None
-    if not isinstance(value.get("resume"), list) or not 3 <= len(value["resume"]) <= 5 or any(not isinstance(x, str) or not x.strip() for x in value["resume"]):
+    resume = normalize_resume(value.get("resume"))
+    if not resume:
         return None
-    if not isinstance(value.get("skills"), list) or any(not isinstance(x, dict) or not all(isinstance(x.get(k), str) for k in ("name", "evidence", "source")) or x["source"] not in {"project", "self_reported"} for x in value["skills"]):
+    skills = value.get("skills")
+    if not isinstance(skills, list):
+        return None
+    cleaned_skills = []
+    for item in skills:
+        if not isinstance(item, dict):
+            continue
+        name, evidence, source = item.get("name"), item.get("evidence"), item.get("source")
+        if isinstance(name, str) and isinstance(evidence, str) and source in {"project", "self_reported"}:
+            cleaned_skills.append({"name": name, "evidence": evidence, "source": source})
+    if not cleaned_skills:
         return None
     return {
         "schemaVersion": 2,
         "title": value["title"][:160],
-        "resume": [x[:700] for x in value["resume"]],
-        "skills": [{k: x[k][:400] for k in ("name", "evidence", "source")} for x in value["skills"][:12]],
+        "resume": [item[:700] for item in resume],
+        "skills": [{k: item[k][:400] for k in ("name", "evidence", "source")} for item in cleaned_skills[:12]],
         "summary": summary[:1600],
         "strengths": [item[:400] for item in strengths if isinstance(item, str)][:3],
         "suggestions": [item[:400] for item in suggestions if isinstance(item, str)][:3],
