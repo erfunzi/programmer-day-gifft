@@ -291,7 +291,7 @@ def atria_generate_text(prompt_text):
         raise AIQuotaExceeded("Atria is not configured")
     base = (os.getenv("ATRIA_BASE_URL") or "https://api.atria-asi.ai/v1").strip()
     model = (os.getenv("ATRIA_MODEL") or "Atria-Dawn-Preview").strip()
-    return openai_compatible_chat(base, key, model, prompt_text, timeout=120)
+    return openai_compatible_chat(base, key, model, prompt_text, timeout=180)
 
 
 def generate_ai_text(prompt_text):
