@@ -10,6 +10,11 @@ export async function api(path, data) {
         }),
     signal: AbortSignal.timeout(path === "/api/me/image" ? 200000 : 75000),
   });
+  if (response.status === 413) {
+    const error = Error("سرور حجم تصویر کارت را نپذیرفت؛ محدودیت آپلود سرور باید افزایش یابد.");
+    error.status = 413;
+    throw error;
+  }
   let body;
   try { body = await response.json(); }
   catch { throw Error("پاسخ سرور کامل نبود؛ دوباره امتحان کن."); }
@@ -22,12 +27,21 @@ export async function api(path, data) {
   return body;
 }
 export async function upload(path, formData) {
+  const image = formData.get("image");
+  if (image instanceof Blob && image.size > 10 * 1024 * 1024) {
+    throw Error("حجم تصویر کارت بیشتر از ۱۰ مگابایت است.");
+  }
   const response = await fetch(path, {
     method: "POST",
     credentials: "same-origin",
     body: formData,
     signal: AbortSignal.timeout(200000),
   });
+  if (response.status === 413) {
+    const error = Error("سرور حجم تصویر کارت را نپذیرفت؛ محدودیت آپلود سرور باید افزایش یابد.");
+    error.status = 413;
+    throw error;
+  }
   let body;
   try { body = await response.json(); }
   catch { throw Error("پاسخ سرور کامل نبود؛ دوباره امتحان کن."); }

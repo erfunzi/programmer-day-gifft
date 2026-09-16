@@ -120,3 +120,25 @@ class WorkspaceTests(TestCase):
             for year in ['2019', '9999', 'invalid']:
                 self.assertEqual(self.client.get('/api/me/activity', {'year':year}).status_code, 400)
             external.assert_not_called()
+
+
+    def test_introduction_is_cached_and_only_published_for_public_cards(self):
+        value = {"lines": ["اول", "دوم", "سوم"]}
+        Report.objects.create(key="intro:1", value=value, saved=now_ms())
+        with patch("workspace.views.requests.post") as external:
+            self.assertEqual(self.post("/api/me/introduction").json(), value)
+            external.assert_not_called()
+        self.assertEqual(self.client.get("/api/cards/developer").status_code, 404)
+        self.user.card = {"user": {"login":"developer"}, "repos":[]}
+        self.user.published = True
+        self.user.save()
+        self.assertEqual(self.client.get("/api/cards/developer").json()["introduction"], value)
+
+    def test_telegram_card_upload_over_default_django_limit(self):
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        card = SimpleUploadedFile('card.png', b'png' + b'x' * (3 * 1024 * 1024), content_type='image/png')
+        with patch('workspace.telegram.publish', return_value={'message_id': 123}) as publish:
+            response = self.client.post('/api/me/telegram/publish', {'theme':'cherry-noir','image':card}, HTTP_ORIGIN='http://testserver')
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(response.json()['messageId'], 123)
+            self.assertEqual(len(publish.call_args.kwargs['card_image'][0]), 3 * 1024 * 1024 + 3)

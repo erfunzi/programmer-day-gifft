@@ -15,6 +15,7 @@ urlpatterns = [
     path("api/me/telegram/link", views.telegram_link),
     path("api/me/telegram/publish", views.telegram_publish),
     path("api/me/ai", views.ai),
+    path("api/me/introduction", views.introduction),
     path("api/me/image", views.image),
     path("api/cards/<str:login>", views.card),
     path("api/cards/<str:login>/image", views.card_image),

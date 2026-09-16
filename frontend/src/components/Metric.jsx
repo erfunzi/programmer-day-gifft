@@ -1,10 +1,8 @@
+import {useId} from "react";
 export function Metric({ label, value, detail, extra }) {
-  return (
-    <div className="metric">
-      <label>{label}</label>
-      <strong>{value}</strong>
-      <small>{detail}</small>
-      {extra && <small>{extra}</small>}
-    </div>
-  );
+  const id=useId();
+  return <div className="metric" tabIndex={extra ? 0 : undefined} aria-describedby={extra ? id : undefined}>
+    <label>{label}</label><strong>{value}</strong><small>{detail}</small>
+    {extra && <span id={id} role="tooltip" className="metric-tooltip">{extra}</span>}
+  </div>;
 }

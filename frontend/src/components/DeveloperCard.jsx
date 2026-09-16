@@ -21,6 +21,9 @@ export function DeveloperCard({
   const cardRef = useRef(null),
     data = useMemo(() => analyze(profile), [profile]);
   const telegramAutoPublished = useRef(false);
+  const introduction = useQuery({queryKey:["introduction",profile.user.login],queryFn:()=>api("/api/me/introduction",{}),enabled:!!account && !visitor && !demo,retry:false,staleTime:Infinity});
+  const introLines = demo ? ["الکس ابزارهایی برای ساخت صفحه‌ها و خدمات وب می‌سازد.", "بعضی پروژه‌های او کمک می‌کنند استفاده از وب برای افراد بیشتری آسان شود.", "او همچنین ابزارهای کوچکی برای ساده‌ترکردن کارهای تکراری ساخته است."] : visitor ? profile.introduction?.lines : introduction.data?.lines;
+
   const queryClient = useQueryClient();
   const character = useMemo(() => characterProfile(data), [data]);
   const [status, setStatus] = useState(""),
@@ -370,6 +373,10 @@ export function DeveloperCard({
             چاپ
           </Button>
         </div>
+        {(introLines || introduction.isFetching) && <section className="surface developer-introduction" aria-label="معرفی به زبان ساده">
+          <h3>آشنایی با {u.name || u.login}</h3>
+          {introLines ? introLines.map((line,i)=><p key={i}>{line}</p>) : <p role="status">در حال آماده‌کردن معرفی…</p>}
+        </section>}
         {!visitor && !demo && telegram.data?.configured && telegram.data.linked && (
           <Button variant="secondary" disabled={telegramPublish.isPending} onClick={() => telegramPublish.mutate()}>انتشار با این تم در تلگرام</Button>
         )}

@@ -54,3 +54,6 @@ CELERY_ACCEPT_CONTENT = ["json"]
 CELERY_TASK_SERIALIZER = "json"
 CELERY_RESULT_SERIALIZER = "json"
 CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = True
+
+# Match the reverse proxies; individual card images remain limited to 10 MiB.
+DATA_UPLOAD_MAX_MEMORY_SIZE = 12 * 1024 * 1024

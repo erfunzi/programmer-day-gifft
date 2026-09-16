@@ -57,7 +57,6 @@ export function Reports({ demo, onImage, createdAt }) {
     <>
       <div className="section-heading">
         <div>
-          <div className="eyebrow">از عدد به معنی</div>
           <h2>مسیر امسال، کنار پارسال</h2>
         </div>
         <Button
