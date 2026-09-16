@@ -138,9 +138,6 @@ export default function App() {
                 <h1>
                   این مسیرِ <em>{data.user.name || data.user.login}</em> است.
                 </h1>
-                <p className="hint">
-                  زمان، فعالیت و کارهایی که ساخته‌ای؛ کنار هم.
-                </p>
               </div>
               {demo && (
                 <Button variant="ghost" onClick={() => setDemo(false)}>

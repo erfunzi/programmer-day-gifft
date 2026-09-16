@@ -14,7 +14,6 @@ export function TimezoneSettings({demo}) {
     <select id="timezone" dir="ltr" value={time.data?.timezone || "Asia/Tehran"} disabled={demo || !time.data || change.isPending} onChange={e=>change.mutate(e.target.value)}>
       {zones.map(zone=><option key={zone} value={zone}>{zone === "Asia/Tehran" ? "تهران، ایران — Asia/Tehran" : zone}</option>)}
     </select>
-    <p className="hint">پیش‌فرض تهران است. انتخاب تو ذخیره می‌شود و مرز روزها در گزارش زمان کار را تعیین می‌کند.</p>
-    <p className="hint" role="status">{change.error?.message || time.error?.message || (change.isPending ? "در حال ذخیره…" : change.isSuccess ? "منطقهٔ زمانی ذخیره شد." : demo ? "در حالت نمونه، منطقهٔ زمانی تهران است." : "")}</p>
+    <p className="hint" role="status">{change.error?.message || time.error?.message || (change.isPending ? "در حال ذخیره…" : change.isSuccess ? "منطقهٔ زمانی ذخیره شد." : "")}</p>
   </section>;
 }

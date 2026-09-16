@@ -44,6 +44,7 @@ export function Reports({ demo, onImage }) {
     onError: (e) => setStatus(e.message),
   });
   const labels = {
+    bestDay: ["پرمشارکت‌ترین روز", "بیشترین تعداد مشارکت ثبت‌شده در یک روز."],
     total: ["کل مشارکت‌ها", "تمام مشارکت‌های ثبت‌شده در تقویم GitHub."],
     activeDays: ["روزهای فعال", "روزهایی با حداقل یک مشارکت."],
     longest: ["بیشترین تداوم", "بیشترین روزهای متوالی با مشارکت ثبت‌شده."],
@@ -67,20 +68,7 @@ export function Reports({ demo, onImage }) {
           دریافت گزارش
         </Button>
       </div>
-      <p className="hint">
-        {report.data
-          ? `${report.data.year} در برابر ${report.data.year - 1} · `
-          : ""}
-        مقایسهٔ بازه‌های هم‌اندازهٔ تقویم میلادی، از اول سال تا امروز.
-      </p>
-      <p className="hint" role="status">
-        {report.isPending
-          ? "در حال خواندن فعالیت‌های GitHub…"
-          : report.error?.message ||
-            (demo
-              ? "داده‌های این مقایسه ساختگی‌اند."
-              : "فعالیت‌های قابل‌مشاهده برای اتصال GitHub")}
-      </p>
+      {(report.isPending || report.error) && <p className="hint" role="status">{report.error?.message || "در حال خواندن فعالیت‌های GitHub…"}</p>}
       <div className="metric-grid">
         {report.data &&
           Object.entries(labels).map(([key, [title, hint]]) => {
@@ -116,7 +104,6 @@ export function Reports({ demo, onImage }) {
             <h2>تحلیل اختصاصی، با AI</h2>
           </div>
         </div>
-        <p className="hint">تحلیل نخست از اطلاعات عمومی پروژه‌ها ساخته و در حساب تو ذخیره می‌شود.</p>
         <p role="status" className="hint">
           {ai.isFetching
             ? "در حال بررسی پروژه‌ها و گزارش‌ها…"

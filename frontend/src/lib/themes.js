@@ -1,6 +1,6 @@
 export const THEMES = [
-  {id:"sky-bloom",name:"شکوفهٔ آسمان",english:"Sky Bloom",description:"آبی روشن، لطیف و شفاف",colors:["#edf6ff","#195c9a","#7150a5"]},
-  {id:"cherry-noir",name:"گیلاس نیمه‌شب",english:"Cherry Noir",description:"بلک چری، عمیق و مخملی",colors:["#180d15","#ff91b3","#d6a2ed"]},
+  {id:"sky-bloom",name:"شکوفهٔ آسمان",english:"Sky Bloom",description:"آبی روشن، لطیف و شفاف",colors:["#edf6ff","#195c9a","#68829d"]},
+  {id:"cherry-noir",name:"گیلاس نیمه‌شب",english:"Cherry Noir",description:"بلک چری، عمیق و مخملی",colors:["#180d15","#d6a0ae","#b5a5b9"]},
   {id:"graphite-core",name:"هستهٔ گرافیتی",english:"Graphite Core",description:"خاکستری تیره، خنثی و صنعتی",colors:["#16181c","#d8dee8","#94a8c4"]},
   {
     id: "aurora-mint",

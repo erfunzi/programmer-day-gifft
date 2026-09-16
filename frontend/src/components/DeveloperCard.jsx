@@ -336,15 +336,8 @@ export function DeveloperCard({
         {!visitor && !demo && telegram.data?.configured && telegram.data.linked && (
           <Button variant="secondary" disabled={telegramPublish.isPending} onClick={() => telegramPublish.mutate()}>انتشار با این تم در تلگرام</Button>
         )}
-        {!visitor && (
-          <p className="hint">
-            فقط کارت و اطلاعات عمومی منتشر می‌شود؛ گزارش‌ها و زمان کار خصوصی
-            می‌مانند.
-          </p>
-        )}
         <p className="hint" role="status">
-          {status ||
-            (demo ? "نمونهٔ نمایشی؛ اشتراک‌گذاری پس از ورود فعال می‌شود." : "")}
+          {status}
         </p>
       </div>
     </div>

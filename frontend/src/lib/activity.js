@@ -6,7 +6,7 @@ export function activityStats(period) {
     streak = day.count > 0 ? (stamp - last === 86400000 ? streak + 1 : 1) : 0;
     longest = Math.max(longest, streak); last = stamp;
   }
-  return {...period, total: days.reduce((n,d)=>n+d.count,0), activeDays: days.filter(d=>d.count>0).length, longest};
+  return {...period, bestDay: days.reduce((n,d)=>Math.max(n,d.count),0), total: days.reduce((n,d)=>n+d.count,0), activeDays: days.filter(d=>d.count>0).length, longest};
 }
 export function exportReport(data, analysis) {
   const blob = new Blob([JSON.stringify({generatedAt:new Date().toISOString(), ...data, current:activityStats(data.current), previous:activityStats(data.previous), analysis:analysis || null},null,2)],{type:'application/json;charset=utf-8'});

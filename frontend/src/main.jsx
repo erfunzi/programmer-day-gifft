@@ -3,6 +3,8 @@ import { createRoot } from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import App from "./App";
 import "./styles/tailwind.css";
+import "./styles/style.css";
+import "./styles/workspace.css";
 const client = new QueryClient({
   defaultOptions: {
     queries: { retry: false, staleTime: 60000, refetchOnWindowFocus: false },

@@ -18,6 +18,14 @@ test('React demo preserves card, tabs, timer and layout',async({page})=>{
  for (const [name,id] of [['شکوفهٔ آسمان','sky-bloom'],['گیلاس نیمه‌شب','cherry-noir'],['هستهٔ گرافیتی','graphite-core']]) {
    await page.getByRole('radio',{name:new RegExp(name)}).click();
    await expect(page.locator('html')).toHaveAttribute('data-theme',id);
+   const backgrounds={'sky-bloom':'rgb(234, 243, 252)','cherry-noir':'rgb(16, 11, 16)','graphite-core':'rgb(17, 19, 22)'};
+   await expect(page.locator('body')).toHaveCSS('background-color',backgrounds[id]);
+   await page.getByRole('tab',{name:'کارت و معرفی'}).click();
+   const cardBackground=await page.locator('#dev-card').evaluate(el=>getComputedStyle(el).backgroundImage);
+   expect(cardBackground).not.toContain('rgb(41, 55, 42)');
+   await page.screenshot({path:`test-results/theme-${id}-${test.info().project.name}.png`,fullPage:true});
+   await page.getByRole('tab',{name:'تنظیمات'}).click();
+
    expect(new URL(page.url()).searchParams.get('theme')).toBe(id);
  }
  await page.getByRole('radio',{name:/شفق نعنایی/}).click();
@@ -26,8 +34,13 @@ test('React demo preserves card, tabs, timer and layout',async({page})=>{
  await expect(page.getByRole('heading',{name:'مسیر امسال، کنار پارسال'})).toBeVisible();
  await expect(page.getByRole('button',{name:'تحلیل مسیر من'})).toHaveCount(0);
  await page.locator('.day-cell').first().focus();
- await expect(page.locator('.calendar-detail')).toContainText('مشارکت');
- await expect(page.locator('#reports-panel .metric-grid .metric')).toHaveCount(7);
+ await expect(page.getByRole('tooltip')).toContainText('مشارکت');
+ const cell = await page.locator('.day-cell').first().boundingBox();
+ expect(cell.width).toBe(14); expect(cell.height).toBe(14);
+ await page.getByRole('img',{name:'نمودار مقایسهٔ روزهای فعال تجمعی'}).focus();
+ await page.keyboard.press('ArrowRight');
+ await expect(page.getByRole('tooltip')).toContainText('روز فعال');
+ await expect(page.locator('#reports-panel .metric-grid .metric')).toHaveCount(8);
  await page.screenshot({path:`test-results/reports-${test.info().project.name}.png`,fullPage:true});
  const reportDownload=page.waitForEvent('download');
  await page.getByRole('button',{name:'دریافت گزارش'}).click();
