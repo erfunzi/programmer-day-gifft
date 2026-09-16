@@ -114,3 +114,9 @@ class WorkspaceTests(TestCase):
         self.assertEqual(self.client.get('/api/me/time').json()['timezone'], 'Asia/Tehran')
         self.assertEqual(self.post('/api/me/timezone', {'timezone':'UTC'}).status_code, 200)
         self.assertEqual(self.client.get('/api/me/time').json()['timezone'], 'UTC')
+
+    def test_calendar_rejects_years_outside_account_lifetime(self):
+        with patch('workspace.views.profile_data', return_value={'user':{'created_at':'2020-05-10T00:00:00Z'}}), patch('workspace.views.requests.post') as external:
+            for year in ['2019', '9999', 'invalid']:
+                self.assertEqual(self.client.get('/api/me/activity', {'year':year}).status_code, 400)
+            external.assert_not_called()

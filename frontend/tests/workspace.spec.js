@@ -41,6 +41,13 @@ test('React demo preserves card, tabs, timer and layout',async({page})=>{
  await page.keyboard.press('ArrowRight');
  await expect(page.getByRole('tooltip')).toContainText('روز فعال');
  await expect(page.locator('#reports-panel .metric-grid .metric')).toHaveCount(8);
+ const years=page.getByRole('navigation',{name:'سال مشارکت‌ها'});
+ await expect(years.getByRole('button',{name:'2019',exact:true})).toHaveCount(0);
+ await years.getByRole('button',{name:'2020',exact:true}).click();
+ await expect(page.getByRole('heading',{name:'ریتم مشارکت 2020'})).toBeVisible();
+ await expect(page.locator('.day-cell')).toHaveCount(366);
+ await years.getByRole('button',{name:String(new Date().getFullYear()),exact:true}).click();
+
  await page.screenshot({path:`test-results/reports-${test.info().project.name}.png`,fullPage:true});
  const reportDownload=page.waitForEvent('download');
  await page.getByRole('button',{name:'دریافت گزارش'}).click();

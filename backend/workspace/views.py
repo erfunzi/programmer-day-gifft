@@ -352,6 +352,18 @@ def activity(request):
         return json_error("برای ادامه با GitHub وارد شو.", 401)
     current_year = datetime.now(datetime_timezone.utc).year
     today = datetime.now(datetime_timezone.utc)
+    if request.GET.get("year"):
+        try:
+            selected_year = int(request.GET["year"])
+            created = profile_data(user)["user"]["created_at"]
+            first_year = datetime.fromisoformat(created.replace("Z", "+00:00")).year
+        except (ValueError, TypeError, KeyError):
+            return json_error("سال معتبر نیست.", 400)
+        if not first_year <= selected_year <= current_year:
+            return json_error("سال خارج از بازهٔ فعالیت حساب است.", 400)
+        if selected_year < current_year:
+            today = datetime(selected_year, 12, 31, 23, 59, 59, tzinfo=datetime_timezone.utc)
+        current_year = selected_year
     from_date = datetime(current_year, 1, 1, tzinfo=datetime_timezone.utc)
     previous_from = datetime(current_year - 1, 1, 1, tzinfo=datetime_timezone.utc)
     previous_to = previous_from + (today - from_date)

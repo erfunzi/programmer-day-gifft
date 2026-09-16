@@ -94,7 +94,7 @@ export function Timer({ demo }) {
           <p className="hint" role="status">
             {status ||
               query.error?.message ||
-              "تا وقتی توقف را نزنی، زمان ادامه دارد؛ حتی با بستن این صفحه."}
+              (t?.active ? "تا وقتی توقف را نزنی، زمان ادامه دارد؛ حتی با بستن این صفحه." : "")}
           </p>
         </section>
         <div>

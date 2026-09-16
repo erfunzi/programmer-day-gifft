@@ -213,6 +213,7 @@ export default function App() {
                 <>
                   <TabsContent value="reports">
                     <Reports
+                      createdAt={data.user.created_at}
                       demo={demo}
                       onImage={() => setImageVersion(Date.now())}
                     />

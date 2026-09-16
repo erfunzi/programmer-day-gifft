@@ -5,7 +5,7 @@ import { Metric } from "./Metric";
 import { api, number } from "../lib/api";
 import { activityStats, exportReport } from "../lib/activity";
 import { ActivityCharts } from "./ActivityCharts";
-export function Reports({ demo, onImage }) {
+export function Reports({ demo, onImage, createdAt }) {
   const [status, setStatus] = useState("");
   const report = useQuery({
     queryKey: ["activity", demo],
@@ -94,7 +94,7 @@ export function Reports({ demo, onImage }) {
             );
           })}
       </div>
-      {report.data && <ActivityCharts report={report.data} />}
+      {report.data && <ActivityCharts report={report.data} demo={demo} createdAt={createdAt} />}
       <section className="surface ai-surface">
         <div className="section-heading">
           <div>

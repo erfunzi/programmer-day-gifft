@@ -16,3 +16,8 @@ html[data-theme] .workspace-heading em{color:var(--theme-accent)}
 html[data-theme] .dev-card .identity img{border-color:var(--theme-accent)}
 html[data-theme] .secondary{border-color:var(--theme-line);color:var(--theme-page-ink)}
 html[data-theme] .story>p:not(.hint),html[data-theme] .repo-link{color:var(--theme-page-ink)}
+html[data-theme] .metric small,html[data-theme] .day-bar small,html[data-theme] .day-bar span,html[data-theme] #timer-state{color:var(--theme-muted)}
+html[data-theme] .day-bar i{background:linear-gradient(0deg,var(--theme-accent-2),var(--theme-accent))}
+html[data-theme] .demo-banner{color:var(--theme-page-ink);background:color-mix(in srgb,var(--theme-accent) 12%,var(--theme-surface));border-color:color-mix(in srgb,var(--theme-accent) 45%,var(--theme-line))}
+.calendar-layout{display:flex;direction:rtl;align-items:center;gap:24px}.calendar-content{flex:1;min-width:0}.calendar-years{display:flex;flex-direction:column;gap:6px;max-height:220px;overflow-y:auto;flex-shrink:0;padding:4px}.calendar-years button{background:transparent;color:var(--theme-muted);border:1px solid transparent;padding:8px 16px;border-radius:7px;font:13px monospace}.calendar-years button[aria-pressed="true"]{background:var(--theme-accent);color:var(--theme-page-bg)}.calendar-years button:hover{border-color:var(--theme-accent)}.contribution-calendar .calendar-cells{margin-inline:auto}.calendar-scroll{direction:ltr}
+@media(max-width:600px){.calendar-layout{gap:10px}.calendar-years button{padding:8px}.calendar-years{max-height:175px}}
