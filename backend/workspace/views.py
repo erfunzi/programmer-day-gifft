@@ -676,8 +676,10 @@ def ai(request):
     try:
         return JsonResponse(generate_ai(user))
     except requests.RequestException:
+        Report.objects.filter(key=f"limit:ai:{user.id}").delete()
         return json_error("سرویس AI فعلاً پاسخ نمی‌دهد.", 503)
     except (RuntimeError, ValueError):
+        Report.objects.filter(key=f"limit:ai:{user.id}").delete()
         return json_error("پاسخ AI معتبر نبود.", 502)
 
 
