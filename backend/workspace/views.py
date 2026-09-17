@@ -112,7 +112,7 @@ def normalize_resume(resume):
     return resume
 
 
-def clean_ai_value(value, provider="Gemini"):
+def clean_ai_locale(value, provider="Gemini"):
     if not isinstance(value, dict):
         return None
     summary = value.get("summary")
@@ -138,14 +138,6 @@ def clean_ai_value(value, provider="Gemini"):
         name, evidence, source = item.get("name"), item.get("evidence"), item.get("source")
         if isinstance(name, str) and isinstance(evidence, str) and source in {"project", "self_reported"}:
             cleaned_skills.append({"name": name, "evidence": evidence, "source": source})
-    if not cleaned_skills:
-        cleaned_skills = [
-            {
-                "name": "Public GitHub showcase",
-                "evidence": "No public repositories or README evidence were available in the provided profile data.",
-                "source": "self_reported",
-            }
-        ]
     return {
         "schemaVersion": 2,
         "title": value["title"][:160],
@@ -160,12 +152,45 @@ def clean_ai_value(value, provider="Gemini"):
     }
 
 
+def clean_ai_value(value, provider="Gemini"):
+    if not isinstance(value, dict) or not isinstance(value.get("locales"), dict):
+        return None
+    locales = {}
+    for language in ("fa", "en"):
+        raw = value["locales"].get(language)
+        cleaned = clean_ai_locale(raw, provider)
+        if not cleaned:
+            return None
+        for key, limit in (("role", 90), ("sloganLead", 40), ("slogan", 30)):
+            if not isinstance(raw.get(key), str) or not raw[key].strip():
+                return None
+            cleaned[key] = raw[key].strip()[:limit]
+        if not isinstance(raw.get("traits"), list):
+            return None
+        cleaned["traits"] = [x[:80] for x in raw["traits"] if isinstance(x, str)][:4]
+        for key in ("schemaVersion", "generatedAt", "provider", "imagePrompt"):
+            cleaned.pop(key, None)
+        locales[language] = cleaned
+    return {"schemaVersion": 3, "locales": locales, "imagePrompt": str(value.get("imagePrompt", ""))[:1200], "generatedAt": now_ms(), "provider": provider}
+
+
+def profile_fingerprint(source):
+    # Cosmetic popularity changes do not invalidate a professional narrative.
+    identity = {k: source.get("user", {}).get(k) for k in ("login", "name", "bio", "company", "blog", "location")}
+    repos = sorted([{k: r.get(k) for k in ("name", "description", "language", "topics", "fork", "archived")} for r in source.get("repos", [])], key=lambda r: r.get("name") or "")
+    return digest(json.dumps({"user": identity, "repos": repos, "profileReadme": source.get("profileReadme", ""), "projectReadmes": sorted(source.get("projectReadmes", []), key=lambda r: r.get("name", ""))}, sort_keys=True, ensure_ascii=False))
+
+
 class GitHubAuthExpired(Exception):
     """Raised when the stored GitHub OAuth token is revoked or invalid."""
 
 
 class AIQuotaExceeded(requests.RequestException):
     """Raised when every configured AI provider is unavailable or exhausted."""
+
+
+class AICooldown(Exception):
+    """Raised when this account already reserved a recent AI generation slot."""
 
 
 def gemini_text_models():
@@ -326,7 +351,7 @@ def api(view):
         try:
             if request.method not in ("GET", "POST"):
                 return json_error("روش درخواست مجاز نیست.", 405)
-            mutations = {"time_start", "time_stop", "timezone", "share", "ai", "introduction", "logout", "telegram_link", "telegram_publish"}
+            mutations = {"time_start", "time_stop", "timezone", "preferences", "share", "ai", "introduction", "logout", "telegram_link", "telegram_publish"}
             if view.__name__ in mutations and request.method != "POST":
                 return json_error("روش درخواست مجاز نیست.", 405)
             if request.method == "POST":
@@ -457,7 +482,7 @@ def clear_cookie(response, name):
 
 def profile_data(user):
     cached = Report.objects.filter(key=f"profile:{user.id}").first()
-    if cached and now_ms() - cached.saved < 3600000:
+    if cached and now_ms() - cached.saved < 300000:
         return cached.value
     info = github(f"/users/{user.login}", user._access)
     repos = github(
@@ -564,6 +589,7 @@ def me(request):
                 "avatar": user.avatar,
                 "timezone": user.timezone,
                 "published": user.published,
+                "preferences": {"theme": user.theme, "language": user.language},
             }
             if user
             else None
@@ -578,7 +604,22 @@ def profile(request):
         return json_error("برای ادامه با GitHub وارد شو.", 401)
     source = profile_data(user)
     UserProfile.objects.filter(pk=user.id).update(card={"user": source["user"], "repos": source["repos"]}, published=True)
-    return JsonResponse(source, safe=False)
+    return JsonResponse({**source, "preferences": {"theme": user.theme, "language": user.language}}, safe=False)
+
+
+@api
+@csrf_exempt
+def preferences(request):
+    user = session_user(request)
+    if not user:
+        return json_error("برای ادامه با GitHub وارد شو.", 401)
+    value = payload(request)
+    themes = {"aurora-mint", "neon-arcade", "solar-forge", "deep-ocean", "violet-orbit", "paper-circuit", "sky-bloom", "cherry-noir", "graphite-core"}
+    theme, language = value.get("theme", user.theme), value.get("language", user.language)
+    if theme not in themes or language not in {"fa", "en"}:
+        return json_error("تنظیمات معتبر نیست.", 400)
+    UserProfile.objects.filter(pk=user.pk).update(theme=theme, language=language)
+    return JsonResponse({"theme": theme, "language": language})
 
 
 @api
@@ -829,11 +870,14 @@ def telegram_webhook(request):
 def generate_ai(user):
     UserProfile.objects.select_for_update().get(pk=user.pk)
     cached = Report.objects.filter(key=f"ai:{user.id}").first()
-    if cached and isinstance(cached.value, dict) and cached.value.get("schemaVersion") == 2:
+    source = profile_data(user)
+    fingerprint = profile_fingerprint(source)
+    if cached and isinstance(cached.value, dict) and cached.value.get("schemaVersion") == 3 and now_ms()-cached.saved < 86400000 and cached.value.get("fingerprint") == fingerprint:
         return cached.value
+    if not reserve_report(f"limit:ai:{user.id}", 120000):
+        raise AICooldown()
     if not (os.getenv("GEMINI_API_KEY") or os.getenv("AGENTROUTER_API_KEY") or os.getenv("ATRIA_API_KEY")):
         raise RuntimeError("AI is not configured")
-    source = profile_data(user)
     evidence = {
         "profileReadme": source.get("profileReadme", "")[:12000],
         "user": {k: source.get("user", {}).get(k) for k in ("login", "name", "bio", "created_at", "public_repos", "followers")},
@@ -841,9 +885,12 @@ def generate_ai(user):
         "repos": [{k: r.get(k) for k in ("name", "description", "language", "topics", "fork", "stargazers_count", "pushed_at")} for r in source.get("repos", [])],
     }
     prompt = (
-        "Produce ONE complete reusable Persian developer profile JSON. Required fields: title (unique professional headline), "
+        "Produce ONE complete bilingual developer profile JSON with locales:{fa:{...},en:{...}} and imagePrompt at root. "
+        "Both locales must contain complete natural translations of all fields, never request another generation for translation. "
+        "Each locale requires role (short profession supported by evidence), sloganLead (2-3 words), slogan (1-2 words, max 16 characters), "
+        "traits (2-4 brief evidence-based distinctive card badges), title (unique professional headline), "
         "summary (project analysis for nontechnical readers), resume (3-5 employer-facing paragraphs about demonstrated abilities and practical value), "
-        "skills (array of {name, evidence, source}, source is project or self_reported; include at least one item), strengths (array), suggestions (array), "
+        "skills (array of {name, evidence, source}, source is project or self_reported; empty if no evidence), strengths (array), suggestions (array), "
         "imagePrompt (English gender-neutral 3D collectible). Read profileReadme FIRST: it is the person's own account-name repository, "
         "can contain their only skill evidence. Distinguish self-reported skills from demonstrated project work. Do not mistake a profile README "
         "for a software product. For sparse accounts without skills evidence use kind light humor about an empty public showcase, never insult or "
@@ -859,6 +906,7 @@ def generate_ai(user):
         value = None
     if not value:
         raise ValueError("AI response was not valid")
+    value["fingerprint"] = fingerprint
     Report.objects.update_or_create(key=f"ai:{user.id}", defaults={"value": value, "saved": now_ms()})
     return value
 
@@ -869,13 +917,10 @@ def ai(request):
     user = session_user(request)
     if not user:
         return json_error("برای ادامه با GitHub وارد شو.", 401)
-    cached = Report.objects.filter(key=f"ai:{user.id}").first()
-    if cached and isinstance(cached.value, dict) and cached.value.get("schemaVersion") == 2:
-        return JsonResponse(cached.value)
-    if not reserve_report(f"limit:ai:{user.id}", 120000):
-        return json_error("برای جلوگیری از مصرف سهمیه، تحلیل بعدی کمی بعد آماده می‌شود.", 429, 120)
     try:
         return JsonResponse(generate_ai(user))
+    except AICooldown:
+        return json_error("برای جلوگیری از مصرف سهمیه، تحلیل بعدی کمی بعد آماده می‌شود.", 429, 120)
     except AIQuotaExceeded:
         Report.objects.filter(key=f"limit:ai:{user.id}").delete()
         return json_error("سرویس AI فعلاً پاسخ نمی‌دهد.", 429, 60)
@@ -987,7 +1032,7 @@ def card(request, login):
     if not user or not user.card:
         return json_error("این کارت منتشر نشده یا دیگر در دسترس نیست.", 404)
     intro = Report.objects.filter(key=f"ai:{user.id}").first()
-    return JsonResponse({**user.card, "analysis": {k:v for k,v in intro.value.items() if k != "imagePrompt"} if intro else None})
+    return JsonResponse({**user.card, "preferences": {"theme": user.theme, "language": user.language}, "analysis": {k:v for k,v in intro.value.items() if k not in {"imagePrompt", "fingerprint"}} if intro else None})
 
 
 @api
@@ -1126,4 +1171,4 @@ def introduction(request):
     if not user:
         return json_error("برای ادامه با GitHub وارد شو.", 401)
     value = generate_ai(user)
-    return JsonResponse({"lines": value.get("resume", []), **value})
+    return JsonResponse({"lines": value.get("locales", {}).get(user.language, {}).get("resume", []), **value})

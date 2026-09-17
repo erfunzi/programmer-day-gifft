@@ -2,6 +2,8 @@ from django.db import models
 
 
 class UserProfile(models.Model):
+    theme = models.CharField(max_length=40, default="aurora-mint")
+    language = models.CharField(max_length=2, default="fa")
     id = models.BigIntegerField(primary_key=True)
     login = models.CharField(max_length=39, unique=True)
     name = models.CharField(max_length=255, blank=True)

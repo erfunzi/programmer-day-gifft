@@ -11,6 +11,7 @@ urlpatterns = [
     path("api/me/time/stop", views.time_stop),
     path("api/me/timezone", views.timezone),
     path("api/me/share", views.share),
+    path("api/me/preferences", views.preferences),
     path("api/me/telegram", views.telegram_status),
     path("api/me/telegram/link", views.telegram_link),
     path("api/me/telegram/publish", views.telegram_publish),

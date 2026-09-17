@@ -120,6 +120,7 @@ Copy `.env.example` → `.env`. Important keys:
 | `DJANGO_SECRET_KEY` / `SESSION_SECRET` | Session crypto |
 | `GITHUB_CLIENT_ID` / `GITHUB_CLIENT_SECRET` | OAuth credentials (must match the same GitHub app) |
 | `GEMINI_API_KEY` | Optional AI + image generation |
+| `ATRIA_API_KEY` / `AGENTROUTER_API_KEY` | Optional AI fallbacks after Gemini |
 | `POSTGRES_*` | Database connection |
 | `FRONTEND_PORT` | Host port for the frontend container |
 | `TELEGRAM_BOT_TOKEN` | Bot API token |
@@ -131,6 +132,18 @@ Copy `.env.example` → `.env`. Important keys:
 | `TELEGRAM_ADMIN_ID` | Numeric Telegram user id for backend error alerts |
 
 Never commit `.env`.
+
+---
+
+### Bilingual profiles and saved appearance
+
+`POST /api/me/preferences` stores the account theme and language (`fa` by default, or `en`). Public cards use these server values, even when an old URL contains different query parameters. Visitors cannot access Settings. Shared links and QR codes include the selected language.
+
+One structured AI generation returns both `locales.fa` and `locales.en`, including role, two-part slogan, traits, headline, analysis, resume, evidence-backed skills and growth suggestions. Raw GitHub statistics stay deterministic. Schema 3 replaces the legacy Persian-only cache on the owner's next analysis request.
+
+During an active owner session, the client checks analysis every five minutes. Cached evidence is refreshed after five minutes; AI output is reused for up to 24 hours unless its evidence fingerprint changes. Major changes include profile identity/bio, README content and repository names/descriptions/languages/topics. Popularity counter changes do not invalidate the fingerprint. Language/theme changes never invoke the model. All regeneration uses the same bilingual prompt and per-account database lock. Failed validation preserves the previous saved output.
+
+Deploy with the new `0005_profile_preferences` migration before serving the updated backend.
 
 ---
 

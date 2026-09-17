@@ -10,7 +10,7 @@ test('React demo preserves card, tabs, timer and layout',async({page})=>{
  await expect(page.locator('#dev-card')).toBeVisible();
  await expect(page.locator('#dev-card h2')).toHaveText('Alex Developer');
  await expect(page.locator('.theme-picker')).toBeHidden();
- await expect(page.locator('#dev-card .stats')).not.toContainText(/[۰-۹]/);
+ await expect(page.locator('#dev-card .stats')).toContainText('پروژهٔ عمومی');
  await expect(page.locator('.rating-bar').filter({hasText:'پشتکار'})).toBeVisible();
  await expect(page.locator('.plain-guide')).toHaveCount(0);
  await page.getByRole('tab',{name:'تنظیمات'}).click();
@@ -95,7 +95,7 @@ test('Telegram initial publication survives reload and later publication require
  await page.route('**/api/me',r=>r.fulfill({json:{user:{id:1,login:sample.user.login}}}));
  await page.route('**/api/me/profile',r=>r.fulfill({json:sample}));
  await page.route('**/api/me/time',r=>r.fulfill({json:{timezone:'Asia/Tehran',active:null,history:[],daily:{},total:0,today:0,elapsedDays:1,averagePerCalendarDay:0,activeDays:0}}));
- await page.route('**/api/me/ai',r=>r.fulfill({json:{title:'معرفی',summary:'تحلیل',resume:['معرفی حرفه‌ای نمونه'],skills:[]}}));
+ await page.route('**/api/me/ai',r=>r.fulfill({json:{locales:{fa:{title:'معرفی',summary:'تحلیل',resume:['معرفی حرفه‌ای نمونه'],skills:[],role:'توسعه‌دهنده',sloganLead:'ساختن',slogan:'آینده',traits:[]},en:{title:'Profile',summary:'Analysis',resume:['Professional profile'],skills:[],role:'Developer',sloganLead:'BUILDING',slogan:'FUTURES',traits:[]}}}}));
  await page.route('**/api/me/image?*',r=>r.fulfill({status:404,body:''}));
  await page.route('**/api/me/telegram',r=>r.fulfill({json:state}));
  await page.route('**/api/me/telegram/publish',r=>{
@@ -120,4 +120,66 @@ test('Telegram initial publication survives reload and later publication require
  await publish.click();
  await expect.poll(()=>sent).toBe(2);
  await expect(page.getByText('وارد شدی؛ کارت و گزارش‌ها آماده‌ می‌شوند…')).toHaveCount(0);
+});
+
+test('language setting translates demo card, reports and time without requesting AI', async ({page}) => {
+ let aiCalls=0;page.on('request',r=>{if(r.url().endsWith('/api/me/ai'))aiCalls++;});
+ await page.goto('/');
+ await page.getByRole('button',{name:'دیدن نمونهٔ کارت و گزارش ←'}).click();
+ await page.getByRole('tab',{name:'تنظیمات'}).click();
+ await page.locator('#language').selectOption('en');
+ await expect(page.locator('html')).toHaveAttribute('lang','en');
+ await page.getByRole('tab',{name:'Card & profile'}).click();
+ await expect(page.locator('#dev-card .stats')).toContainText('public projects');
+ await expect(page.locator('.developer-introduction')).toContainText('I develop web tools');
+ await expect(page.locator('.card-celebration')).toContainText('EVERYONE');
+ await page.getByRole('tab',{name:'Progress report'}).click();
+ await expect(page.getByRole('heading',{name:'This year alongside last year'})).toBeVisible();
+ await expect(page.locator('#reports-panel')).not.toContainText(/[\u0600-\u06ff]/);
+ await page.getByRole('tab',{name:'Work time'}).click();
+ await expect(page.getByRole('button',{name:'Start work'})).toBeVisible();
+ await expect(page.locator('#time-panel')).not.toContainText(/[\u0600-\u06ff]/);
+ await page.getByRole('tab',{name:'Card & profile'}).click();
+ await page.screenshot({path:`test-results/english-card-${test.info().project.name}.png`,fullPage:true});
+ expect(aiCalls).toBe(0);
+ expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+});
+
+test('public visitor sees owner preferences and cannot change settings', async ({page}) => {
+ const {sample}=await import('../src/lib/sample.js');
+ await page.route('**/api/cards/alex-sample',r=>r.fulfill({json:{...sample,preferences:{theme:'solar-forge',language:'en'},analysis:{locales:{en:{title:'An accessible web builder',summary:'Building inclusive interfaces.',role:'Web developer',sloganLead:'BUILDING FOR',slogan:'PEOPLE',traits:['Accessible web'],resume:['I build useful interfaces.'],skills:[]}}}}}));
+ await page.route('**/api/cards/alex-sample/image?*',r=>r.fulfill({status:404,body:''}));
+ await page.goto('/?u=alex-sample&theme=sky-bloom&lang=fa');
+ await expect(page.locator('html')).toHaveAttribute('data-theme','solar-forge');
+ await expect(page.locator('html')).toHaveAttribute('lang','en');
+ await expect(page.getByRole('tab',{name:'Settings'})).toHaveCount(0);
+ await expect(page.locator('#language')).toHaveCount(0);
+ await expect(page.locator('.story h2')).toHaveText('An accessible web builder');
+ await expect(page.locator('.card-celebration')).toContainText('PEOPLE');
+});
+
+test('owner preferences persist and bilingual AI switches without another generation', async ({page}) => {
+ const {sample}=await import('../src/lib/sample.js');
+ let preferences={theme:'solar-forge',language:'fa'}, aiCalls=0, release;
+ const ready = new Promise(resolve=>release=resolve);
+ await page.route('**/api/me',r=>r.fulfill({json:{user:{id:1,login:sample.user.login,preferences}}}));
+ await page.route('**/api/me/profile',r=>r.fulfill({json:sample}));
+ await page.route('**/api/me/telegram',r=>r.fulfill({json:{configured:false}}));
+ await page.route('**/api/me/time',r=>r.fulfill({json:{timezone:'Asia/Tehran',active:null,history:[],daily:{},total:0,today:0,elapsedDays:1,averagePerCalendarDay:0,activeDays:0}}));
+ await page.route('**/api/me/image?*',r=>r.fulfill({status:404,body:''}));
+ await page.route('**/api/me/ai',async r=>{aiCalls++;await ready;await r.fulfill({json:{locales:{fa:{title:'عنوان فارسی',summary:'تحلیل فارسی',role:'برنامه‌نویس',sloganLead:'ساختن برای',slogan:'همه',traits:[],resume:['معرفی'],skills:[]},en:{title:'English headline',summary:'English analysis',role:'Developer',sloganLead:'BUILDING FOR',slogan:'ALL',traits:[],resume:['Resume'],skills:[]}}}});});
+ await page.route('**/api/me/preferences',r=>{preferences=r.request().postDataJSON();return r.fulfill({json:preferences});});
+ await page.goto('/');
+ await expect(page.locator('.analysis-loading')).toBeVisible();
+ release();
+ await expect(page.locator('.story h2')).toHaveText('عنوان فارسی');
+ await page.getByRole('tab',{name:'تنظیمات'}).click();
+ await page.locator('#language').selectOption('en');
+ await page.getByRole('tab',{name:'Card & profile'}).click();
+ await expect(page.locator('.story h2')).toHaveText('English headline');
+ expect(aiCalls).toBe(1);
+ expect(preferences).toEqual({theme:'solar-forge',language:'en'});
+ await page.reload();
+ await expect(page.locator('html')).toHaveAttribute('lang','en');
+ await expect(page.locator('html')).toHaveAttribute('data-theme','solar-forge');
 });

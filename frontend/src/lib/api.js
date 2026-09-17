@@ -1,3 +1,4 @@
+import {locale, currentLanguage, t} from "./i18n";
 export async function api(path, data) {
   const response = await fetch(path, {
     credentials: "same-origin",
@@ -19,7 +20,7 @@ export async function api(path, data) {
   try { body = await response.json(); }
   catch { throw Error("پاسخ سرور کامل نبود؛ دوباره امتحان کن."); }
   if (!response.ok) {
-    const error = Error(body.message || "درخواست انجام نشد.");
+    const error = Error(t(body.message || "درخواست انجام نشد."));
     error.status = response.status;
     error.retryAfter = Number(response.headers.get("Retry-After")) || null;
     throw error;
@@ -46,17 +47,17 @@ export async function upload(path, formData) {
   try { body = await response.json(); }
   catch { throw Error("پاسخ سرور کامل نبود؛ دوباره امتحان کن."); }
   if (!response.ok) {
-    const error = Error(body.message || "درخواست انجام نشد.");
+    const error = Error(t(body.message || "درخواست انجام نشد."));
     error.status = response.status;
     error.retryAfter = Number(response.headers.get("Retry-After")) || null;
     throw error;
   }
   return body;
 }
-export const number = (n) => Number(n || 0).toLocaleString("fa-IR");
+export const number = (n) => Number(n || 0).toLocaleString(locale());
 export const hours = (n) =>
-  Number(n / 3600000).toLocaleString("fa-IR", { maximumFractionDigits: 1 }) +
-  " ساعت";
+  Number(n / 3600000).toLocaleString(locale(), { maximumFractionDigits: 1 }) +
+  (currentLanguage() === "en" ? " hours" : " ساعت");
 export function duration(ms) {
   const s = Math.max(0, Math.floor(ms / 1000));
   return [Math.floor(s / 3600), Math.floor(s / 60) % 60, s % 60]

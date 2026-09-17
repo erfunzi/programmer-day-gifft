@@ -6,7 +6,12 @@ from urllib.parse import parse_qs, urlparse
 from django.test import TestCase
 
 from workspace.models import Report, UserProfile, UserSession, WorkSession
-from workspace.views import digest, now_ms, protect, time_data
+from workspace.views import digest, now_ms, protect, time_data, profile_fingerprint
+
+
+def bilingual(value):
+    localized = {**value, "role":"Developer", "sloganLead":"BUILDING WITH", "slogan":"PURPOSE", "traits":["Public tools"]}
+    return {"locales":{"fa":localized, "en":{**localized, "title":"Developer profile"}}, "imagePrompt":value.get("imagePrompt", "")}
 
 
 class WorkspaceTests(TestCase):
@@ -97,10 +102,11 @@ class WorkspaceTests(TestCase):
         self.assertEqual(len(challenge), 43)
         self.assertNotIn("=", challenge)
 
-    def test_analysis_persists_beyond_daily_window(self):
-        value = {"schemaVersion": 2, "summary": "saved", "strengths": [], "suggestions": []}
-        Report.objects.create(key="ai:1", value=value, saved=now_ms()-10*86400000)
-        with patch("workspace.views.requests.post") as external:
+    def test_analysis_reuses_fresh_matching_fingerprint(self):
+        source = {"user":{"login":"developer"}, "repos":[]}
+        value = {"schemaVersion":3, "locales":{}, "fingerprint":profile_fingerprint(source)}
+        Report.objects.create(key="ai:1", value=value, saved=now_ms()-3600000)
+        with patch("workspace.views.profile_data", return_value=source), patch("workspace.views.generate_ai_text") as external:
             self.assertEqual(self.post("/api/me/ai").json(), value)
             external.assert_not_called()
 
@@ -125,16 +131,17 @@ class WorkspaceTests(TestCase):
 
 
     def test_introduction_is_cached_and_only_published_for_public_cards(self):
-        value = {"schemaVersion": 2, "resume": ["اول", "دوم", "سوم"]}
+        source = {"user":{"login":"developer"}, "repos":[]}
+        value = {"schemaVersion":3, "locales":{"fa":{"resume":["اول", "دوم", "سوم"]}}, "fingerprint":profile_fingerprint(source)}
         Report.objects.create(key="ai:1", value=value, saved=now_ms())
-        with patch("workspace.views.requests.post") as external:
-            self.assertEqual(self.post("/api/me/introduction").json()["resume"], value["resume"])
+        with patch("workspace.views.profile_data", return_value=source), patch("workspace.views.generate_ai_text") as external:
+            self.assertEqual(self.post("/api/me/introduction").json()["lines"], value["locales"]["fa"]["resume"])
             external.assert_not_called()
         self.assertEqual(self.client.get("/api/cards/developer").status_code, 404)
         self.user.card = {"user": {"login":"developer"}, "repos":[]}
         self.user.published = True
         self.user.save()
-        self.assertEqual(self.client.get("/api/cards/developer").json()["analysis"], value)
+        self.assertEqual(self.client.get("/api/cards/developer").json()["analysis"], {k:v for k,v in value.items() if k != "fingerprint"})
 
     def test_telegram_card_upload_over_default_django_limit(self):
         from django.core.files.uploadedfile import SimpleUploadedFile
@@ -160,11 +167,11 @@ class WorkspaceTests(TestCase):
         limited = MagicMock(ok=False, status_code=429)
         limited.json.return_value = {}
         ok = MagicMock(ok=True, status_code=200)
-        ok.json.return_value = {"candidates": [{"content": {"parts": [{"text": json.dumps(result)}]}}]}
+        ok.json.return_value = {"candidates": [{"content": {"parts": [{"text": json.dumps(bilingual(result))}]}}]}
         with patch.dict("os.environ", {"AGENTROUTER_API_KEY": "", "ATRIA_API_KEY": ""}, clear=False), patch("workspace.views.profile_data", return_value={"user": {"login": "developer"}, "profileReadme": "", "repos": [], "projectReadmes": []}), patch("workspace.views.requests.post", side_effect=[limited, ok]) as external:
             response = self.post("/api/me/ai")
             self.assertEqual(response.status_code, 200)
-            self.assertEqual(response.json()["title"], "عنوان")
+            self.assertEqual(response.json()["locales"]["fa"]["title"], "عنوان")
             self.assertEqual(response.json()["provider"], "Gemini")
             self.assertEqual(external.call_count, 2)
             self.assertIn("gemini-3.6-flash", external.call_args_list[0].args[0])
@@ -182,7 +189,7 @@ class WorkspaceTests(TestCase):
             "imagePrompt": "A developer robot",
         }
         ok = MagicMock(ok=True, status_code=200)
-        ok.json.return_value = {"choices": [{"message": {"content": json.dumps(result)}}]}
+        ok.json.return_value = {"choices": [{"message": {"content": json.dumps(bilingual(result))}}]}
         with patch("workspace.views.profile_data", return_value={"user": {"login": "developer"}, "profileReadme": "", "repos": [], "projectReadmes": []}), patch("workspace.views.requests.post", return_value=ok) as external:
             response = self.post("/api/me/ai")
             self.assertEqual(response.status_code, 200)
@@ -194,10 +201,10 @@ class WorkspaceTests(TestCase):
         result = {"title":"عنوان", "summary":"تحلیل", "resume":["یک", "دو", "سه"], "skills":[{"name":"Python", "evidence":"README", "source":"self_reported"}], "strengths":[], "suggestions":[], "imagePrompt":"A developer robot"}
         with patch("workspace.views.profile_data", return_value={"user":{"login":"developer"}, "profileReadme":"I use Python", "repos":[], "projectReadmes":[]}), patch("workspace.views.requests.post") as external:
             external.return_value.ok = True
-            external.return_value.json.return_value = {"candidates":[{"content":{"parts":[{"text":json.dumps(result)}]}}]}
+            external.return_value.json.return_value = {"candidates":[{"content":{"parts":[{"text":json.dumps(bilingual(result))}]}}]}
             first = self.post("/api/me/ai")
             self.assertEqual(first.status_code, 200)
-            self.assertEqual(first.json()["title"], "عنوان")
+            self.assertEqual(first.json()["locales"]["fa"]["title"], "عنوان")
             self.assertEqual(self.post("/api/me/introduction").json()["lines"], result["resume"])
             self.assertEqual(self.post("/api/me/ai").json(), first.json())
             external.assert_called_once()
