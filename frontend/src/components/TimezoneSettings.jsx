@@ -10,11 +10,21 @@ export function TimezoneSettings({ demo }) {
     mutationFn: (timezone) => api("/api/me/timezone", { timezone }),
     onSuccess: () => {toast(t("منطقهٔ زمانی ذخیره شد."));return Promise.all([client.invalidateQueries({ queryKey: ["time"] }), client.invalidateQueries({ queryKey: ["session"] })]);}
   });
-  return <section className="surface timezone-settings">
-    <h3>{t("زمان و منطقهٔ زمانی")}</h3>
-    <label htmlFor="timezone">{t("منطقهٔ زمانی گزارش")}</label>
-    <select id="timezone" dir="ltr" value={time.data?.timezone || "Asia/Tehran"} disabled={demo || !time.data || change.isPending} onChange={(e) => change.mutate(e.target.value)}>
-      {zones.map((zone) => <option key={zone} value={zone}>{zone === "Asia/Tehran" ? t("تهران، ایران — Asia/Tehran") : zone}</option>)}
-    </select>
-  </section>;
+  return (
+    <div className="settings-field timezone-settings">
+      <label htmlFor="timezone">{t("زمان و منطقهٔ زمانی")}</label>
+      <select
+        id="timezone"
+        dir="ltr"
+        value={time.data?.timezone || "Asia/Tehran"}
+        disabled={demo || !time.data || change.isPending}
+        onChange={(e) => change.mutate(e.target.value)}>
+        {zones.map((zone) => (
+          <option key={zone} value={zone}>
+            {zone === "Asia/Tehran" ? t("تهران، ایران — Asia/Tehran") : zone}
+          </option>
+        ))}
+      </select>
+    </div>
+  );
 }

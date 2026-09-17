@@ -1,13 +1,15 @@
 import { useEffect, useSyncExternalStore } from "react";
+import { toastMessage } from "./api";
 let items = [], nextId = 0;
 const listeners = new Set();
 const emit = () => listeners.forEach(listener => listener());
 export function toast(message) {
-  if (!message || items.some(item => item.message === message)) return;
+  const text = toastMessage(message);
+  if (!text || items.some(item => item.message === text)) return;
   const id = ++nextId;
-  items = [...items, { id, message }];
+  items = [...items, { id, message: text }];
   emit();
-  setTimeout(() => dismissToast(id), 5000);
+  setTimeout(() => dismissToast(id), 6000);
 }
 export function dismissToast(id) {
   items = items.filter(item => item.id !== id);

@@ -10,7 +10,7 @@ export function TelegramSettings({ demo }) {
   });
   return <section aria-label={t("تنظیمات تلگرام")}>
         {!demo && telegram.data?.configured &&
-    <div className="telegram-bridge" dir="rtl">
+    <div className="telegram-bridge">
             <div>
               <strong>{t("کارتت در کانال lyrooDev")}</strong>
               <p>

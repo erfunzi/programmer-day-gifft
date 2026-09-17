@@ -3,7 +3,7 @@ import { TelegramSettings } from "./components/TelegramSettings";
 import { TimezoneSettings } from "./components/TimezoneSettings";
 import { useEffect, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { api } from "./lib/api";
+import { api, toastMessage } from "./lib/api";
 import { sample } from "./lib/sample";
 import { Entry } from "./components/Entry";
 import { DeveloperCard } from "./components/DeveloperCard";
@@ -73,8 +73,9 @@ export default function App() {
   });
   const choosePreferences = (value) => {
     const next = { theme, language, ...value };
-    if (account && !demo && !visitor) savePreferences.mutate(next);else
-    {setTheme(next.theme);setLanguage(next.language);}
+    setTheme(next.theme);
+    setLanguage(next.language);
+    if (account && !demo && !visitor) savePreferences.mutate(next);
   };
   const logout = useMutation({
     mutationFn: () => api("/auth/logout", {}),
@@ -138,7 +139,7 @@ export default function App() {
           onDemo={() => setDemo(true)}
           status={
           errors[params.get("auth_error")] ||
-          config.error?.message || (
+          (config.error ? toastMessage(config.error) : "") || (
           config.data && !config.data.loginReady ? t("ورود GitHub در حال آماده‌سازی است؛ فعلاً نمونه را ببین.") :
 
           "")
@@ -236,12 +237,22 @@ export default function App() {
                 </>
             }
               {!visitor && <TabsContent value="settings">
+                <section className="surface settings-locale">
+                  <fieldset disabled={savePreferences.isPending} className="preference-fields settings-pair">
+                    <div className="settings-field language-settings">
+                      <label htmlFor="language">{t("زبان")}</label>
+                      <select id="language" value={language} onChange={(e) => choosePreferences({ language: e.target.value })}>
+                        <option value="fa">{t("فارسی")}</option>
+                        <option value="en">English</option>
+                      </select>
+                    </div>
+                    <TimezoneSettings demo={demo} />
+                  </fieldset>
+                </section>
                 <fieldset disabled={savePreferences.isPending} className="preference-fields">
-                <section className="surface"><label htmlFor="language">{t("زبان")}</label><select id="language" value={language} onChange={(e) => choosePreferences({ language: e.target.value })}><option value="fa">{t("فارسی")}</option><option value="en">English</option></select></section>
-                <ThemePicker value={theme} onChange={(theme) => choosePreferences({ theme })} />
+                  <ThemePicker value={theme} onChange={(theme) => choosePreferences({ theme })} />
                 </fieldset>
-                {!visitor && <TimezoneSettings demo={demo} />}
-                {!visitor && <TelegramSettings demo={demo} />}
+                <TelegramSettings demo={demo} />
               </TabsContent>}
             </Tabs>
           </section>

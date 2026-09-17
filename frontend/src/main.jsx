@@ -8,8 +8,8 @@ import "./styles/tailwind.css";
 import "./styles/style.css";
 import "./styles/workspace.css";
 const client = new QueryClient({
-  queryCache: new QueryCache({onError: error => toast(error.message)}),
-  mutationCache: new MutationCache({onError: error => toast(error.message)}),
+  queryCache: new QueryCache({onError: error => toast(error)}),
+  mutationCache: new MutationCache({onError: error => toast(error)}),
   defaultOptions: {
     queries: { retry: false, staleTime: 60000, refetchOnWindowFocus: false },
   },

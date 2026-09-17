@@ -75,6 +75,16 @@ const en = {
 'منطقهٔ زمانی ذخیره شد.':'Time zone saved.','زمان و منطقهٔ زمانی':'Time & time zone','منطقهٔ زمانی گزارش':'Report time zone','تهران، ایران — Asia/Tehran':'Tehran, Iran — Asia/Tehran',
 'اعلان‌ها':'Notifications','بستن اعلان':'Dismiss notification',
 'مشارکت':'contributions','روز فعال':'active days','معرفی':'Profile',
-'پاسخ سرور کامل نبود؛ دوباره امتحان کن.':'The server response was incomplete. Please try again.','درخواست انجام نشد.':'The request failed.'
+'پاسخ سرور کامل نبود؛ دوباره امتحان کن.':'The server response was incomplete. Please try again.','درخواست انجام نشد.':'The request failed.',
+'ارتباط با سرور برقرار نشد. اتصال اینترنت را بررسی کن و دوباره تلاش کن.':'Could not reach the server. Check your connection and try again.',
+'درخواست بیش از حد طول کشید. لطفاً دوباره تلاش کن.':'The request took too long. Please try again.',
+'مشکلی در سمت سرور پیش آمده؛ عذر می‌خواهیم. کمی بعد دوباره تلاش کن یا با پشتیبانی ارتباط بگیر.':'Something went wrong on our side — sorry. Try again shortly, or contact support if it continues.',
+'مشکلی پیش آمد؛ عذر می‌خواهیم. دوباره تلاش کن و اگر ادامه داشت با پشتیبانی ارتباط بگیر.':'Something went wrong — sorry. Please try again, or contact support if it continues.',
+'کمی شلوغ است؛ لطفاً کمی بعد دوباره تلاش کن.':'We are a bit busy. Please try again in a moment.',
+'نشست منقضی شده یا دسترسی نداری؛ دوباره وارد شو.':'Your session expired or you do not have access. Please sign in again.',
+'مورد درخواستی پیدا نشد. صفحه را تازه کن یا دوباره تلاش کن.':'We could not find what you asked for. Refresh the page or try again.',
+'حجم فایل بیش از حد مجاز است.':'The file is larger than allowed.',
+'سرور حجم تصویر کارت را نپذیرفت؛ محدودیت آپلود سرور باید افزایش یابد.':'The server rejected the card image size; the upload limit needs to be increased.',
+'حجم تصویر کارت بیشتر از ۱۰ مگابایت است.':'The card image is larger than 10 MB.'
 };
 export function t(text) { return language === 'en' ? (en[text] ?? text) : text; }
