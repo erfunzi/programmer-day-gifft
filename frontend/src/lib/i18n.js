@@ -3,6 +3,7 @@ export const setLocale = value => { language = value === 'en' ? 'en' : 'fa'; };
 export const locale = () => language === 'en' ? 'en-US' : 'fa-IR';
 export const currentLanguage = () => language;
 const en = {
+'ورود':'Enter','در حال ورود…':'Signing in…','در حال خروج…':'Signing out…','در حال آماده‌سازی کارت…':'Preparing your card…',
 'زبان':'Language','فارسی':'Persian',
 'ورود GitHub هنوز تنظیم نشده است.':'GitHub sign-in is not configured yet.',
 'درخواست ورود منقضی یا نامعتبر بود. دوباره وارد شو.':'Your sign-in request expired. Please sign in again.',

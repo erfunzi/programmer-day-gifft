@@ -97,10 +97,16 @@ class WorkspaceTests(TestCase):
 
     @patch.dict("os.environ", {"GITHUB_CLIENT_ID": "test"})
     def test_oauth_pkce_format(self):
+        self.client.cookies.clear()
         query = parse_qs(urlparse(self.client.get("/auth/github")["Location"]).query)
         challenge = query["code_challenge"][0]
         self.assertEqual(len(challenge), 43)
         self.assertNotIn("=", challenge)
+
+    def test_existing_session_skips_github_oauth(self):
+        response = self.client.get("/auth/github")
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response["Location"], "/")
 
     def test_analysis_reuses_fresh_matching_fingerprint(self):
         source = {"user":{"login":"developer"}, "repos":[]}

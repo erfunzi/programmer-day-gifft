@@ -1,7 +1,8 @@
 import { t } from "../lib/i18n";
 import { useToastMessage } from "../lib/toast";
 import { Button } from "./ui/button";
-export function Entry({ onDemo, status }) {
+import { LoadingButtonLabel, LoadingState } from "./LoadingState";
+export function Entry({ onDemo, status, account, entering, onEnter }) {
   useToastMessage(status);
   return (
     <section id="intro" className="entry">
@@ -11,24 +12,23 @@ export function Entry({ onDemo, status }) {
         </div>
         <h1>{t("فقط کد نیست.")}
 
-          <br />{t("مسیرِ")}
+          <br />{t("مسیرِ")}{" "}
           <em>{t("ساختن توست.")}</em>
         </h1>
         <p className="lead">{t("کارت حرفه‌ای تو، زمان‌هایی که صرف ساختن می‌کنی و تصویری روشن از پیشرفتت؛ قابل‌فهم حتی برای کسی که برنامه‌نویس نیست.")}
 
 
         </p>
-        <Button asChild className="login-button">
-          <a href="/auth/github">
-            <span dir="ltr">GitHub</span> {t("· ورود و ساخت کارت")}
-          </a>
+        <Button className="login-button" disabled={entering} onClick={onEnter} aria-busy={entering}>
+          <LoadingButtonLabel pending={entering} pendingLabel={t("در حال ورود…")} label={account ? t("ورود") : <><span dir="ltr">GitHub</span> {t("· ورود و ساخت کارت")}</>} />
         </Button>
-        <p className="hint">{t("ورود رسمی از طریق GitHub؛ بدون دریافت رمز عبور یا درخواست دسترسی به مخزن‌های خصوصی.")}
+        {entering && <LoadingState variant="inline" label={t("در حال ورود…")} />}
+        {!account && <p className="hint">{t("ورود رسمی از طریق GitHub؛ بدون دریافت رمز عبور یا درخواست دسترسی به مخزن‌های خصوصی.")}
 
 
-        </p>
+        </p>}
 
-        <Button variant="ghost" onClick={onDemo}>{t("دیدن نمونهٔ کارت و گزارش ←")}
+        <Button variant="ghost" disabled={entering} onClick={onDemo}>{t("دیدن نمونهٔ کارت و گزارش ←")}
 
         </Button>
         <div className="steps">

@@ -1048,6 +1048,8 @@ def card_image(request, login):
 
 @api
 def github_login(request):
+    if session_user(request):
+        return HttpResponseRedirect("/")
     if not os.getenv("GITHUB_CLIENT_ID"):
         return HttpResponseRedirect("/?auth_error=not_configured")
     state, verifier = token(), token()

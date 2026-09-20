@@ -6,6 +6,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api, toastMessage } from "./lib/api";
 import { sample } from "./lib/sample";
 import { Entry } from "./components/Entry";
+import { LoadingState, LoadingButtonLabel } from "./components/LoadingState";
 import { DeveloperCard } from "./components/DeveloperCard";
 import { Reports } from "./components/Reports";
 import { Timer } from "./components/Timer";
@@ -14,6 +15,7 @@ import { DEFAULT_THEME, getTheme } from "./lib/themes";
 import { Button } from "./components/ui/button";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "./components/ui/tabs";
 export default function App() {
+  const [authTransition, setAuthTransition] = useState(null);
   const client = useQueryClient(),
     [demo, setDemo] = useState(false),
     [imageVersion, setImageVersion] = useState(0),
@@ -43,10 +45,22 @@ export default function App() {
   });
   const session = useQuery({
     queryKey: ["session"],
-    queryFn: () => api("/api/me")
+    queryFn: () => api("/api/me"),
+    refetchOnWindowFocus: "always"
   });
   const account = session.data?.user;
-  const sessionPending = session.isLoading || session.isFetching;
+  const sessionPending = session.isPending;
+  useEffect(() => {
+    const resume = event => { if (event.persisted) {setAuthTransition(null); session.refetch();} };
+    window.addEventListener("pageshow", resume);
+    return () => window.removeEventListener("pageshow", resume);
+  }, [session.refetch]);
+  const enter = async () => {
+    setAuthTransition("login");
+    const result = await session.refetch();
+    if (result.error) {setAuthTransition(null); return;}
+    location.assign(result.data?.user ? "/" : "/auth/github");
+  };
   const profile = useQuery({
     queryKey: ["profile", requested, account?.id],
     queryFn: () =>
@@ -79,6 +93,8 @@ export default function App() {
   };
   const logout = useMutation({
     mutationFn: () => api("/auth/logout", {}),
+    onMutate: () => setAuthTransition("logout"),
+    onError: () => setAuthTransition(null),
     onSuccess: () => {
       client.clear();
       location.assign("/");
@@ -108,7 +124,7 @@ export default function App() {
   }, [profile.error, visitor, demo, client]);
   // Logged-in users never see the GitHub login entry again until logout/expiry.
   const showEntry =
-  !demo && !visitor && !account && !sessionPending && !data;
+  !demo && !visitor && !account && session.isSuccess && !data && authTransition !== "logout";
   return (
     <>
       <div className="ambient" aria-hidden="true" />
@@ -125,8 +141,9 @@ export default function App() {
           {account &&
           <Button
             variant="ghost"
-            disabled={logout.isPending}
-            onClick={() => logout.mutate()}>{t("خروج")}
+            disabled={!!authTransition}
+            aria-busy={authTransition === "logout"}
+            onClick={() => logout.mutate()}><LoadingButtonLabel pending={authTransition === "logout"} label={t("خروج")} pendingLabel={t("در حال خروج…")} />
 
 
           </Button>
@@ -136,6 +153,9 @@ export default function App() {
       <main>
         {showEntry &&
         <Entry
+          account={account}
+          entering={authTransition === "login"}
+          onEnter={enter}
           onDemo={() => setDemo(true)}
           status={
           errors[params.get("auth_error")] ||
@@ -146,15 +166,19 @@ export default function App() {
           } />
 
         }
-        {sessionPending && <p role="status" className="hint">{t("در حال بررسی وضعیت ورود…")}</p>}
+        {authTransition === "logout" ? <LoadingState label={t("در حال خروج…")} /> : <>
+          {sessionPending && !demo && !visitor && <LoadingState label={t("در حال بررسی وضعیت ورود…")} />}
+          {!data && profile.isFetching && (account || visitor) && <LoadingState label={t("در حال آماده‌سازی کارت…")} />}
+          {session.isError && !data && <Button onClick={()=>session.refetch()}>{t("تلاش دوباره")}</Button>}
+        </>}
 
-        {data &&
+        {data && authTransition !== "logout" &&
         <section id="workspace">
             <div className="workspace-heading">
               <div>
 
-                <h1>{t("این مسیرِ")}
-                <em>{data.user.name || data.user.login}</em>{t("است.")}
+                <h1>{t("این مسیرِ")}{" "}
+                <em>{data.user.name || data.user.login}</em>{" "}{t("است.")}
               </h1>
               </div>
               {demo &&

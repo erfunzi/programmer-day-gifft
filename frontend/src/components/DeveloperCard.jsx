@@ -9,6 +9,7 @@ import { api, number, upload } from "../lib/api";
 import { analyze } from "../lib/sample";
 import { characterProfile, characterAssetPath } from "../lib/character";
 import { exportCard } from "../lib/export-card";
+import { LoadingState } from "./LoadingState";
 
 export function DeveloperCard({
   profile,
@@ -230,7 +231,7 @@ export function DeveloperCard({
       <div className="story">
         <div className="story-label">{t("// به زبان ساده")}</div>
         <h2>{narrative?.title || `${t("معرفی")} ${u.name || u.login}`}</h2>
-        {generating ? <div className="analysis-loading" role="status" aria-busy="true"><div className="loading-orbit" aria-hidden="true">✦</div><strong>{t("در حال ساخت روایت تو…")}</strong><p>{t("پروژه‌ها و READMEها بررسی می‌شوند؛ معرفی فارسی و انگلیسی با هم آماده خواهند شد.")}</p><i /><i /><i /></div> : <p>{narrative?.summary || t("تحلیل این پروفایل هنوز آماده نیست.")}</p>}
+        {generating ? <div className="analysis-loading-container"><LoadingState label={t("در حال ساخت روایت تو…")} detail={t("پروژه‌ها و READMEها بررسی می‌شوند؛ معرفی فارسی و انگلیسی با هم آماده خواهند شد.")} /></div> : <p>{narrative?.summary || t("تحلیل این پروفایل هنوز آماده نیست.")}</p>}
         {introduction.isError && !visitor && <Button onClick={() => introduction.refetch()}>{t("تلاش دوباره")}</Button>}
 
         {narrative?.strengths?.length > 0 && <ul>{narrative.strengths.map((text, i) => <li key={i}>{text}</li>)}</ul>}

@@ -1,5 +1,6 @@
 import { t } from "../lib/i18n";
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
+import { LoadingState } from "./LoadingState";
 import { Button } from "./ui/button";
 import { Metric } from "./Metric";
 import { api, number } from "../lib/api";
@@ -57,7 +58,8 @@ export function Reports({ demo, onImage, createdAt }) {
 
         </Button>
       </div>
-      {report.isPending && <p className="hint" role="status">{t("در حال خواندن فعالیت‌های GitHub…")}</p>}
+      {report.isFetching && <LoadingState variant={report.data ? "inline" : "report"} label={t("در حال خواندن فعالیت‌های GitHub…")} />}
+      {report.isError && <Button variant="secondary" onClick={()=>report.refetch()}>{t("تلاش دوباره")}</Button>}
       <div className="metric-grid">
         {report.data &&
         Object.entries(labels).map(([key, [title, hint]]) => {

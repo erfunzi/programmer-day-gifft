@@ -44,6 +44,25 @@ html[data-theme] header{border-color:var(--theme-line)}
 
 .result-grid > .developer-introduction{grid-column:1 / -1;width:100%;direction:rtl;margin-top:0}
 
+.loading-state{padding:clamp(20px,4vw,36px);margin:24px 0;border:1px solid var(--theme-line);border-radius:18px;background:var(--theme-surface);color:var(--theme-page-ink);animation:loading-appear .2s ease-out}
+.loading-state-heading{display:flex;gap:16px;align-items:center}
+.loading-state strong{font-size:1rem;font-weight:600}
+.loading-state p{margin:8px 0 0;color:var(--theme-muted);font-size:.9rem;line-height:1.9}
+.loading-spinner{display:inline-grid;place-items:center;width:36px;height:36px;flex:none;border:2px solid var(--theme-line);border-top-color:var(--theme-accent);border-radius:50%;animation:loading-spin 1.2s linear infinite}
+.loading-spinner i{width:6px;height:6px;border-radius:50%;background:var(--theme-accent)}
+.loading-spinner--small{width:18px;height:18px;border-color:currentColor;border-top-color:transparent}.loading-spinner--small i{display:none}
+.loading-lines{display:grid;gap:12px;margin-top:24px}
+.loading-lines i,.loading-metrics i{display:block;height:10px;border-radius:6px;background:linear-gradient(100deg,var(--theme-chip) 20%,var(--theme-line) 50%,var(--theme-chip) 80%);background-size:240% 100%;animation:loading-shimmer 2s ease-in-out infinite}
+.loading-lines i:nth-child(2){width:85%}.loading-lines i:last-child{width:60%}
+.loading-metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:16px;margin-top:24px}
+.loading-metrics>div{display:grid;gap:16px;padding:20px;border:1px solid var(--theme-line);border-radius:12px}.loading-metrics i:nth-child(2){height:28px;width:50%}
+.loading-state--inline{padding:8px 0;margin:12px 0;border:0;background:transparent}.loading-state--inline .loading-spinner{width:22px;height:22px}
+@keyframes loading-spin{to{transform:rotate(360deg)}}
+@keyframes loading-shimmer{to{background-position:-240% 0}}
+@keyframes loading-appear{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+@media(max-width:700px){.loading-metrics{grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.loading-metrics>div{padding:16px}}
+@media(prefers-reduced-motion:reduce){.loading-state,.loading-spinner,.loading-lines i,.loading-metrics i{animation:none!important}}
+
 /* Clear text at normal viewing size, with a slower, shallower card turn. */
 .dev-card.auto-rotate{animation:card-turn-gentle 18s ease-in-out infinite!important}
 @keyframes card-turn-gentle{0%,100%{transform:perspective(1600px) rotateY(-4deg) rotateX(1deg)}50%{transform:perspective(1600px) rotateY(4deg) rotateX(-1deg)}}

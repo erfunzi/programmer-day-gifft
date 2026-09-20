@@ -170,7 +170,7 @@ test('owner preferences persist and bilingual AI switches without another genera
  await page.route('**/api/me/ai',async r=>{aiCalls++;await ready;await r.fulfill({json:{locales:{fa:{title:'عنوان فارسی',summary:'تحلیل فارسی',role:'برنامه‌نویس',sloganLead:'ساختن برای',slogan:'همه',traits:[],resume:['معرفی'],skills:[]},en:{title:'English headline',summary:'English analysis',role:'Developer',sloganLead:'BUILDING FOR',slogan:'ALL',traits:[],resume:['Resume'],skills:[]}}}});});
  await page.route('**/api/me/preferences',r=>{preferences=r.request().postDataJSON();return r.fulfill({json:preferences});});
  await page.goto('/');
- await expect(page.locator('.analysis-loading')).toBeVisible();
+ await expect(page.locator('.analysis-loading-container .loading-state')).toBeVisible();
  release();
  await expect(page.locator('.story h2')).toHaveText('عنوان فارسی');
  await page.getByRole('tab',{name:'تنظیمات'}).click();
