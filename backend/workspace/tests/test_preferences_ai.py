@@ -53,3 +53,18 @@ class PreferencesAndAnalysisTests(TestCase):
         with patch('workspace.views.profile_data',return_value=source), patch('workspace.views.generate_ai_text',return_value=('{}','test')):
             self.assertEqual(self.post('/api/me/ai').status_code,502)
         self.assertEqual(Report.objects.get(key='ai:1').value,old)
+
+    @patch.dict('os.environ', {'GEMINI_API_KEY':'test'})
+    def test_flat_fa_en_payload_is_accepted(self):
+        source={'user':{'login':'developer'},'repos':[],'profileReadme':''}
+        locale={
+            'role':'مهندس نرم‌افزار','sloganLead':'ساخت محصول','slogan':'آرام','traits':['دقیق'],
+            'title':'معرفی','summary':'متن','resume':['الف','ب','ج'],'skills':[],'strengths':['a'],'suggestions':['b'],
+        }
+        flat={'fa':locale,'en':{**locale,'role':'Software engineer','sloganLead':'Build calmly','slogan':'Steady','title':'About'},'imagePrompt':'soft 3d figure'}
+        with patch('workspace.views.profile_data',return_value=source), patch('workspace.views.generate_ai_text',return_value=(json.dumps(flat),'test')):
+            response=self.post('/api/me/ai')
+        self.assertEqual(response.status_code,200)
+        body=response.json()
+        self.assertEqual(set(body['locales']),{'fa','en'})
+        self.assertEqual(body['imagePrompt'],'soft 3d figure')

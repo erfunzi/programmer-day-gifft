@@ -152,12 +152,46 @@ def clean_ai_locale(value, provider="Gemini"):
     }
 
 
+def normalize_ai_payload(value):
+    """Accept both {locales:{fa,en}} and flat {fa,en,imagePrompt} model shapes."""
+    if not isinstance(value, dict):
+        return None
+    locales = value.get("locales")
+    if isinstance(locales, dict) and (isinstance(locales.get("fa"), dict) or isinstance(locales.get("en"), dict)):
+        image_prompt = value.get("imagePrompt")
+        if not isinstance(image_prompt, str):
+            for language in ("fa", "en"):
+                locale = locales.get(language)
+                if isinstance(locale, dict) and isinstance(locale.get("imagePrompt"), str):
+                    image_prompt = locale["imagePrompt"]
+                    break
+            else:
+                image_prompt = ""
+        return {"locales": locales, "imagePrompt": image_prompt}
+    if isinstance(value.get("fa"), dict) or isinstance(value.get("en"), dict):
+        image_prompt = value.get("imagePrompt")
+        if not isinstance(image_prompt, str):
+            for language in ("fa", "en"):
+                locale = value.get(language)
+                if isinstance(locale, dict) and isinstance(locale.get("imagePrompt"), str):
+                    image_prompt = locale["imagePrompt"]
+                    break
+            else:
+                image_prompt = ""
+        return {
+            "locales": {"fa": value.get("fa"), "en": value.get("en")},
+            "imagePrompt": image_prompt,
+        }
+    return None
+
+
 def clean_ai_value(value, provider="Gemini"):
-    if not isinstance(value, dict) or not isinstance(value.get("locales"), dict):
+    normalized = normalize_ai_payload(value)
+    if not normalized:
         return None
     locales = {}
     for language in ("fa", "en"):
-        raw = value["locales"].get(language)
+        raw = normalized["locales"].get(language)
         cleaned = clean_ai_locale(raw, provider)
         if not cleaned:
             return None
@@ -171,7 +205,14 @@ def clean_ai_value(value, provider="Gemini"):
         for key in ("schemaVersion", "generatedAt", "provider", "imagePrompt"):
             cleaned.pop(key, None)
         locales[language] = cleaned
-    return {"schemaVersion": 3, "locales": locales, "imagePrompt": str(value.get("imagePrompt", ""))[:1200], "generatedAt": now_ms(), "provider": provider}
+    return {
+        "schemaVersion": 3,
+        "locales": locales,
+        "imagePrompt": str(normalized.get("imagePrompt", ""))[:1200],
+        "generatedAt": now_ms(),
+        "provider": provider,
+    }
+
 
 
 def profile_fingerprint(source):
