@@ -2,7 +2,7 @@ import { t } from "../lib/i18n";
 import { toast as setStatus } from "../lib/toast";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Download, Share2 } from "lucide-react";
+import { ChevronDown, Download, Share2 } from "lucide-react";
 import QRCode from "qrcode";
 import { Button } from "./ui/button";
 import { api, number, upload } from "../lib/api";
@@ -235,7 +235,7 @@ export function DeveloperCard({
         {introduction.isError && !visitor && <Button onClick={() => introduction.refetch()}>{t("تلاش دوباره")}</Button>}
 
         {narrative?.strengths?.length > 0 && <ul>{narrative.strengths.map((text, i) => <li key={i}>{text}</li>)}</ul>}
-        {narrative?.suggestions?.length > 0 && <details><summary>{t("پیشنهادهای رشد")}</summary><ul>{narrative.suggestions.map((text, i) => <li key={i}>{text}</li>)}</ul></details>}
+        {narrative?.suggestions?.length > 0 && <details className="growth-suggestions"><summary><span>{t("پیشنهادهای رشد")}</span><ChevronDown aria-hidden="true" size={20} /></summary><ul>{narrative.suggestions.map((text, i) => <li key={i}>{text}</li>)}</ul></details>}
         <div className="languages">
           {data.languages.slice(0, 5).map(([language, count]) =>
           <span className="language" key={language}>

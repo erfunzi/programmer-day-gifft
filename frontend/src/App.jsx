@@ -16,8 +16,16 @@ import { Button } from "./components/ui/button";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "./components/ui/tabs";
 export default function App() {
   const [authTransition, setAuthTransition] = useState(null);
+  const [reportYear, setReportYear] = useState(null);
+  const [activeTab, setActiveTab] = useState(() => {
+    const value = new URLSearchParams(location.search).get("tab");
+    return ["card", "reports", "time", "settings"].includes(value) ? value : "card";
+  });
   const client = useQueryClient(),
-    [demo, setDemo] = useState(false),
+    [demo, setDemo] = useState(() => {
+      const query = new URLSearchParams(location.search);
+      return query.get("demo") === "1" && !query.has("u");
+    }),
     [imageVersion, setImageVersion] = useState(0),
     params = new URLSearchParams(location.search),
     [theme, setTheme] = useState(() => {
@@ -28,6 +36,14 @@ export default function App() {
   setLocale(language);
   const requested = params.get("u"),
     visitor = !!requested;
+  useEffect(() => {
+    const next = new URL(location.href);
+    if (!visitor && activeTab !== "card") next.searchParams.set("tab", activeTab);
+    else next.searchParams.delete("tab");
+    if (demo && !visitor) next.searchParams.set("demo", "1");
+    else next.searchParams.delete("demo");
+    history.replaceState(null, "", next);
+  }, [activeTab, demo, visitor]);
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
     if (!visitor) localStorage.setItem("developer-card-theme", theme);
@@ -223,7 +239,7 @@ export default function App() {
                 </Button>
               </div>
           }
-            <Tabs defaultValue="card" dir={language === "fa" ? "rtl" : "ltr"}>
+            <Tabs value={visitor ? "card" : activeTab} onValueChange={setActiveTab} dir={language === "fa" ? "rtl" : "ltr"}>
               <TabsList aria-label={t("بخش‌های پروفایل")}>
                 <TabsTrigger value="card">{t("کارت و معرفی")}</TabsTrigger>
                 {!visitor &&
@@ -250,6 +266,8 @@ export default function App() {
             <>
                   <TabsContent value="reports">
                     <Reports
+                  selection={reportYear}
+                  setSelection={setReportYear}
                   createdAt={data.user.created_at}
                   demo={demo}
                   onImage={() => setImageVersion(Date.now())} />

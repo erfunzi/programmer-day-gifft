@@ -683,13 +683,27 @@ def activity(request):
             today = datetime(selected_year, 12, 31, 23, 59, 59, tzinfo=datetime_timezone.utc)
         current_year = selected_year
     from_date = datetime(current_year, 1, 1, tzinfo=datetime_timezone.utc)
-    previous_from = datetime(current_year - 1, 1, 1, tzinfo=datetime_timezone.utc)
-    previous_to = previous_from + (today - from_date)
+    comparison_year = current_year - 1
+    if request.GET.get("compare"):
+        try:
+            comparison_year = int(request.GET["compare"])
+            created = profile_data(user)["user"]["created_at"]
+            first_year = datetime.fromisoformat(created.replace("Z", "+00:00")).year
+        except (ValueError, TypeError, KeyError):
+            return json_error("سال معتبر نیست.", 400)
+        if not first_year <= comparison_year < current_year:
+            return json_error("سال خارج از بازهٔ فعالیت حساب است.", 400)
+    previous_from = datetime(comparison_year, 1, 1, tzinfo=datetime_timezone.utc)
+    try:
+        previous_to = today.replace(year=comparison_year)
+    except ValueError:  # February 29 compared with a non-leap year.
+        previous_to = today.replace(year=comparison_year, day=28)
     fields = "totalCommitContributions totalPullRequestContributions totalIssueContributions totalPullRequestReviewContributions contributionCalendar { weeks { contributionDays { date contributionCount } } }"
     query = f"""query($login:String!,$from:DateTime!,$to:DateTime!,$previousFrom:DateTime!,$previousTo:DateTime!) {{ user(login:$login) {{ current:contributionsCollection(from:$from,to:$to) {{{fields}}} previous:contributionsCollection(from:$previousFrom,to:$previousTo) {{{fields}}} }} }}"""
     empty = {"commits": 0, "pullRequests": 0, "reviews": 0, "issues": 0, "days": []}
     data = {
         "year": current_year,
+        "comparisonYear": comparison_year,
         "current": {
             "from": from_date.isoformat(),
             "to": today.isoformat(),

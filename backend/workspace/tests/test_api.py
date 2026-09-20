@@ -135,6 +135,20 @@ class WorkspaceTests(TestCase):
                 self.assertEqual(self.client.get('/api/me/activity', {'year':year}).status_code, 400)
             external.assert_not_called()
 
+    def test_comparison_year_validation_and_leap_day_bounds(self):
+        with patch('workspace.views.profile_data', return_value={'user':{'created_at':'2020-05-10T00:00:00Z'}}), patch('workspace.views.requests.post') as external, patch('workspace.views.datetime', wraps=datetime) as clock:
+            clock.now.return_value = datetime(2024, 2, 29, 12, tzinfo=timezone.utc)
+            for year in ['2019', '2024', '9999', 'invalid']:
+                self.assertEqual(self.client.get('/api/me/activity', {'compare':year}).status_code, 400)
+            external.assert_not_called()
+            external.return_value.json.return_value = {'data':{'user':{'current':{'totalCommitContributions':3}, 'previous':{'totalCommitContributions':2}}}}
+            response = self.client.get('/api/me/activity', {'compare':'2021'})
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(response.json()['comparisonYear'], 2021)
+            variables = external.call_args.kwargs['json']['variables']
+            self.assertEqual(variables['previousFrom'], '2021-01-01T00:00:00+00:00')
+            self.assertEqual(variables['previousTo'], '2021-02-28T12:00:00+00:00')
+
 
     def test_introduction_is_cached_and_only_published_for_public_cards(self):
         source = {"user":{"login":"developer"}, "repos":[]}

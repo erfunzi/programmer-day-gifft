@@ -14,18 +14,18 @@ export function ActivityCharts({ report, demo, createdAt }) {
   const calendarDays = selectedYear === report.year ? report.current.days : calendar.data?.current.days || [];
   const current = report.current.days || [],previous = report.previous.days || [];
   const cumulative = (days) => {let sum = 0;return days.map((d) => sum += d.count > 0 ? 1 : 0);};
-  const lines = [cumulative(current), cumulative(previous)];
+  const lines = report.comparisonYear ? [cumulative(current), cumulative(previous)] : [cumulative(current)];
   const max = Math.max(1, ...lines.flat()),length = Math.max(2, current.length, previous.length);
   const points = (values) => values.map((v, i) => `${40 + i / (length - 1) * 680},${210 - v / max * 170}`).join(' ');
   const offset = calendarDays.length ? new Date(calendarDays[0].date + 'T00:00:00Z').getUTCDay() : 0;
   const detail = (d) => `${new Date(d.date + 'T00:00:00Z').toLocaleDateString(locale(), { dateStyle: 'full', timeZone: 'UTC' })} · ${d.date} · ${number(d.count)} ${t("مشارکت")}`;
   const show = (text, x, y) => setTip({ text, x: Math.max(12, Math.min(x - 140, window.innerWidth - 292)), y: Math.max(12, Math.min(y + 18, window.innerHeight - 100)) });
   const hide = () => {setTip(null);setIndex(null);};
-  const chartTip = (i, x, y) => {setIndex(i);show([0, 1].map((j) => `${report.year - j} · ${(j ? previous : current)[i]?.date || '—'} · ${lines[j][i] ?? '—'} ${t("روز فعال")}`).join('\n'), x, y);};
+  const chartTip = (i, x, y) => {setIndex(i);show(lines.map((line,j) => `${j ? report.comparisonYear : report.year} · ${(j ? previous : current)[i]?.date || '—'} · ${line[i] ?? '—'} ${t("روز فعال")}`).join('\n'), x, y);};
   return <>
  <section className="surface persistence-chart">
- <h3>{t("پشتکار؛ تداوم مشارکت امسال و پارسال")}</h3>
- <div className="chart-legend"><span><i />{t("امسال ·")}{" "}{report.year}</span><span><i />{t("پارسال ·")}{" "}{report.year - 1}</span></div>
+ <h3>{t("پشتکار؛ تداوم مشارکت در سال‌های انتخاب‌شده")}</h3>
+ <div className="chart-legend"><span><i />{t("امسال ·")}{" "}{report.year}</span>{report.comparisonYear && <span><i />{report.comparisonYear}</span>}</div>
  <svg viewBox="0 0 760 250" role="img" aria-label={t("نمودار مقایسهٔ روزهای فعال تجمعی")} dir="ltr" tabIndex={0}
       onMouseMove={(e) => {const r = e.currentTarget.getBoundingClientRect();const i = Math.max(0, Math.min(length - 1, Math.round(((e.clientX - r.left) / r.width * 760 - 40) / 680 * (length - 1))));chartTip(i, e.clientX, e.clientY);}} onMouseLeave={hide} onBlur={hide}
       onKeyDown={(e) => {if (['ArrowLeft', 'ArrowRight'].includes(e.key)) {e.preventDefault();const i = Math.max(0, Math.min(length - 1, (index ?? 0) + (e.key === 'ArrowRight' ? 1 : -1)));const r = e.currentTarget.getBoundingClientRect();chartTip(i, r.left + r.width / 2, r.top);}}}>

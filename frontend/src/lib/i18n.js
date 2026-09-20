@@ -88,4 +88,12 @@ const en = {
 'سرور حجم تصویر کارت را نپذیرفت؛ محدودیت آپلود سرور باید افزایش یابد.':'The server rejected the card image size; the upload limit needs to be increased.',
 'حجم تصویر کارت بیشتر از ۱۰ مگابایت است.':'The card image is larger than 10 MB.'
 };
+Object.assign(en, {
+  'سال مقایسه': 'Comparison year', 'امسال': 'This year',
+  'مسیر امسال و سال انتخاب‌شده': 'This year alongside your selected year',
+  'هنوز سال پیشینی برای مقایسه وجود ندارد.': 'There is no earlier account year to compare yet.',
+  '٪ نسبت به سال انتخاب‌شده': '% vs selected year',
+  'در بازهٔ مقایسه موردی ثبت نشده': 'Nothing recorded in the comparison period',
+  'پشتکار؛ تداوم مشارکت در سال‌های انتخاب‌شده': 'Persistence across the selected years'
+});
 export function t(text) { return language === 'en' ? (en[text] ?? text) : text; }
