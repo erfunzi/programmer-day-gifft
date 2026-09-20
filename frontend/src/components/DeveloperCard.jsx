@@ -9,6 +9,7 @@ import { api, number, upload } from "../lib/api";
 import { analyze } from "../lib/sample";
 import { characterProfile, characterAssetPath } from "../lib/character";
 import { exportCard } from "../lib/export-card";
+import { prepareTelegramCard } from "../lib/telegram-card";
 import { LoadingState } from "./LoadingState";
 
 export function DeveloperCard({
@@ -50,7 +51,8 @@ export function DeveloperCard({
   const telegramPublish = useMutation({
     mutationFn: async (mode = "manual") => {
       const card = await exportCard(cardRef.current, u.login, {
-        download: false
+        download: false,
+        prepareClone: clone => prepareTelegramCard(clone, analysis?.locales?.en, data, holiday)
       });
       const form = new FormData();
       form.append("mode", mode);
@@ -72,10 +74,10 @@ export function DeveloperCard({
   });
   const shareURL = `${location.origin}/?u=${encodeURIComponent(u.login)}&theme=${encodeURIComponent(theme)}&lang=${language}`;
   useEffect(() => {
-    if (!telegram.data?.configured || !telegram.data?.initialPublish || !account || visitor || demo || !qr || !narrative || telegramAutoPublished.current) return;
+    if (!telegram.data?.configured || !telegram.data?.initialPublish || !account || visitor || demo || !qr || !analysis?.locales?.en?.role || telegramAutoPublished.current) return;
     telegramAutoPublished.current = true;
     telegramPublish.mutate("initial");
-  }, [telegram.data?.configured, telegram.data?.initialPublish, account, visitor, demo, qr, narrative]);
+  }, [telegram.data?.configured, telegram.data?.initialPublish, account, visitor, demo, qr, analysis]);
   useEffect(() => {
     let active = true;
     QRCode.toDataURL(
@@ -293,7 +295,7 @@ export function DeveloperCard({
         </div>
         {!demo && !visitor && config.data?.imageReady && <Button variant="secondary" disabled={generateImage.isPending || introduction.isFetching} onClick={() => generateImage.mutate()}>{generateImage.isPending ? t("در حال ساخت کاراکتر…") : t("ساخت کاراکتر از تحلیل")}</Button>}
         {!visitor && !demo && telegram.data?.configured &&
-        <Button variant="secondary" disabled={telegramPublish.isPending || !telegram.data.canPublish} onClick={() => telegramPublish.mutate("manual")}>{telegramPublish.isPending ? t("در حال انتشار…") : t("انتشار در کانال تلگرام")}</Button>
+        <Button variant="secondary" disabled={telegramPublish.isPending || !telegram.data.canPublish || !analysis?.locales?.en?.role} onClick={() => telegramPublish.mutate("manual")}>{telegramPublish.isPending ? t("در حال انتشار…") : t("انتشار در کانال تلگرام")}</Button>
         }
 
       </div>

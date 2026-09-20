@@ -58,6 +58,7 @@ class PreferencesAndAnalysisTests(TestCase):
     def test_flat_fa_en_payload_is_accepted(self):
         source={'user':{'login':'developer'},'repos':[],'profileReadme':''}
         locale={
+            'telegramText':'A builder of useful tools.', 'featuredProjects':[],
             'role':'مهندس نرم‌افزار','sloganLead':'ساخت محصول','slogan':'آرام','traits':['دقیق'],
             'title':'معرفی','summary':'متن','resume':['الف','ب','ج'],'skills':[],'strengths':['a'],'suggestions':['b'],
         }

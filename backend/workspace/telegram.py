@@ -157,30 +157,31 @@ def premium_emoji(name):
     return f'<tg-emoji emoji-id="{emoji_id}">{fallback}</tg-emoji>'
 
 
-def render_caption(profile, theme):
+def render_caption(profile, theme, analysis=None):
+    # Telegram measures caption length in UTF-16 units, including emoji pairs.
+    def short(value, limit):
+        return str(value).encode('utf-16-le')[:limit * 2].decode('utf-16-le', errors='ignore')
     user = profile["user"]
-    repos = profile.get("repos", [])
-    top = sorted(repos, key=lambda item: item.get("stargazers_count", 0), reverse=True)[:3]
-    rows = [
-        f"<code>projects   {int(user.get('public_repos', 0)):,}</code>",
-        f"<code>followers  {int(user.get('followers', 0)):,}</code>",
-        f"<code>stars      {sum(int(repo.get('stargazers_count', 0)) for repo in repos):,}</code>",
-    ]
+    narrative = (analysis or {}).get("locales", {}).get("fa", {})
+    repos = [r for r in profile.get("repos", []) if r.get("name") and not r.get("fork") and not r.get("private") and r["name"].lower() != user["login"].lower()]
+    by_name = {r["name"]: r for r in repos}
+    top = []
+    for name in narrative.get("featuredProjects", []):
+        if name in by_name and by_name[name] not in top:
+            top.append(by_name[name])
+    for repo in sorted(repos, key=lambda item: item.get("stargazers_count", 0), reverse=True):
+        if repo not in top:
+            top.append(repo)
+    top = top[:3]
     projects = "\n".join(
-        f"{premium_emoji('badge_alt')} <a href=\"https://github.com/{esc(user['login'])}/{esc(repo['name'])}\">{esc(repo['name'])}</a> · {premium_emoji('sparkle')} {int(repo.get('stargazers_count', 0)):,}"
+        f"• <a href=\"https://github.com/{esc(user['login'])}/{esc(repo['name'])}\">{esc(short(repo['name'], 70))}</a>"
         for repo in top
-    ) or f"{premium_emoji('badge_alt')} هنوز پروژهٔ عمومی برای نمایش پیدا نشد"
-    app_url = f"{settings.APP_ORIGIN}/?u={esc(user['login'])}&theme={esc(theme)}"
+    ) or "هنوز پروژهٔ عمومی برای نمایش پیدا نشد"
+    message = narrative.get("telegramText") or narrative.get("summary") or "پروژه‌ها و مسیر ساختن این توسعه‌دهنده را در کارت او ببینید."
     return (
-        f"{premium_emoji('sparkle')} <b>یک سازندهٔ تازه در lyrooDev</b>\n\n"
-        f"{premium_emoji('person')} <b>{esc(user.get('name') or user['login'])}</b> · <code>@{esc(user['login'])}</code>\n"
-        f"{premium_emoji('badge')} تم کارت: <i>{esc(theme)}</i>\n\n"
-        f"<blockquote>هر commit یک قدم است؛ این کارت، خلاصه‌ای از مسیر ساختن، ابزارها و پروژه‌های عمومی این توسعه‌دهنده است.</blockquote>\n\n"
-        f"<pre>╭──────── developer stats ────────╮\n"
-        + "\n".join(rows)
-        + "\n╰────────────────────────────────╯</pre>\n\n"
-        f"{premium_emoji('note')} <b>پروژه‌های شاخص</b>\n{projects}\n\n"
-        f"{premium_emoji('next')} <a href=\"{app_url}\">کارت کامل را ببین و برای دوستت بفرست</a>\n"
+        f"<b>{esc(short(user.get('name') or user['login'], 80))}</b> · <code>@{esc(user['login'])}</code>\n\n"
+        f"{esc(short(message, 420))}\n\n"
+        f"<b>پروژه‌های شاخص</b>\n{projects}\n\n"
         f"#developer_card #lyrooDev"
     )
 
@@ -221,7 +222,7 @@ class PublicationUnavailable(RuntimeError):
 
 
 def publication_markup(user, theme):
-    return {"inline_keyboard": [[{"text": "➡️  مشاهدهٔ کارت کامل", "url": f"{settings.APP_ORIGIN}/?u={user.login}&theme={theme}"}]]}
+    return {"inline_keyboard": [[{"text": "➡️  باز کردن کارت در سایت", "url": f"{settings.APP_ORIGIN}/?u={user.login}&theme={theme}&lang={user.language}"}]]}
 
 
 def message_present(publication):
@@ -276,7 +277,9 @@ def publish(user, theme="aurora-mint", refresh=False, card_image=None):
             raise PublicationUnavailable("کارتت هنوز در کانال موجود است؛ انتشار دوباره لازم نیست.")
     profile = profile_for_caption(user)
     link = TelegramLink.objects.filter(user=user, telegram_id__isnull=False).first()
-    caption = render_caption(profile, theme)
+    from .models import Report
+    analysis = Report.objects.filter(key=f"ai:{user.id}").first()
+    caption = render_caption(profile, theme, analysis.value if analysis else None)
     markup = publication_markup(user, theme)
     data = {
         "chat_id": channel_id(),

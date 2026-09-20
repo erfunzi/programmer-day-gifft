@@ -89,7 +89,8 @@ const en = {
 'حجم تصویر کارت بیشتر از ۱۰ مگابایت است.':'The card image is larger than 10 MB.'
 };
 Object.assign(en, {
-  'سال مقایسه': 'Comparison year', 'امسال': 'This year',
+  'سال مقایسه': 'Comparison year', 'امسال': 'This year', 'روز': 'days',
+  'مسیر مشارکت‌های تو': 'Your contribution path',
   'مسیر امسال و سال انتخاب‌شده': 'This year alongside your selected year',
   'هنوز سال پیشینی برای مقایسه وجود ندارد.': 'There is no earlier account year to compare yet.',
   '٪ نسبت به سال انتخاب‌شده': '% vs selected year',

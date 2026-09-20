@@ -1,11 +1,36 @@
 from unittest.mock import patch
 from django.test import TestCase
-from workspace.models import UserProfile, TelegramPublication, TelegramLink
+from workspace.models import UserProfile, TelegramPublication, TelegramLink, Report
+from workspace.telegram import render_caption
+import html
+import re
 from workspace.telegram import (publish, publication_state, enforce_membership_deadlines, PublicationUnavailable, TelegramAPIError, WEEK, GRACE)
 from workspace.views import now_ms
 
 
 class TelegramLifecycleTests(TestCase):
+    def test_caption_uses_personal_copy_and_only_real_featured_projects(self):
+        profile = {'user':{'login':'builder','name':'Builder <&>'}, 'repos':[
+            {'name':'builder','stargazers_count':100}, {'name':'forked','fork':True},
+            {'name':'useful-tool','stargazers_count':3}, {'name':'other','stargazers_count':10}]}
+        analysis = {'locales':{'fa':{'telegramText':'ابزار <کاربردی> & ساده', 'featuredProjects':['invented','useful-tool','forked']}}}
+        caption = render_caption(profile, 'solar-forge', analysis)
+        self.assertIn('ابزار &lt;کاربردی&gt; &amp; ساده', caption)
+        self.assertIn('Builder &lt;&amp;&gt;', caption)
+        self.assertLess(caption.index('useful-tool'), caption.index('other'))
+        self.assertNotIn('invented', caption)
+        self.assertNotIn('forked', caption)
+        analysis['locales']['fa']['telegramText'] = '🚀' * 1000
+        caption = render_caption(profile, 'solar-forge', analysis)
+        self.assertLessEqual(len(html.unescape(re.sub('<[^>]+>', '', caption)).encode('utf-16-le')) // 2, 1024)
+
+    @patch('workspace.telegram.api_call', return_value={'message_id':456})
+    def test_publish_reads_cached_ai_without_generating_a_second_message(self, api):
+        Report.objects.create(key='ai:99',value={'locales':{'fa':{'telegramText':'متن اختصاصی سازنده','featuredProjects':[]}}},saved=now_ms())
+        self.post()
+        self.assertIn('متن اختصاصی سازنده', api.call_args.kwargs['data']['caption'])
+        self.assertIn('lang=fa', api.call_args.kwargs['data']['reply_markup'])
+
     def setUp(self):
         self.user = UserProfile.objects.create(id=99, login='test', joined=now_ms(), card={'user':{'login':'test'},'repos':[]})
         self.config = patch('workspace.telegram.configured', return_value=True)

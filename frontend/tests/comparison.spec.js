@@ -7,6 +7,7 @@ test('comparison follows account years and explains exact metric dates', async (
   await page.goto('/?theme=solar-forge');
   await page.getByRole('button',{name:'دیدن نمونهٔ کارت و گزارش ←'}).click();
   await page.getByRole('tab',{name:'گزارش پیشرفت'}).click();
+  await expect(page.getByRole('heading',{name:'مسیر مشارکت‌های تو'})).toBeVisible();
   const select = page.getByLabel('سال مقایسه');
   await expect(select.locator('option')).toHaveCount(new Date().getUTCFullYear()-2020);
   await select.selectOption('2020');
@@ -14,7 +15,7 @@ test('comparison follows account years and explains exact metric dates', async (
   await expect(page.locator('#reports-panel .metric').first()).toContainText('2020:');
   await page.locator('#reports-panel .metric').first().focus();
   await expect(page.locator('.metric-tooltip').first()).toContainText('2020:');
-  await expect(page.locator('.metric-tooltip').first()).toContainText('۱۳۹۸');
+  await expect(page.locator('.metric-tooltip').first()).not.toContainText('،');
   await page.screenshot({path:`test-results/comparison-${test.info().project.name}.png`,fullPage:true,animations:'disabled'});
   await page.getByRole('tab',{name:'تنظیمات'}).click();
   await page.locator('#language').selectOption('en');

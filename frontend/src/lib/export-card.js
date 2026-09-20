@@ -1,10 +1,11 @@
 import { toBlob, getFontEmbedCSS } from "html-to-image";
-export async function exportCard(card, login, { download = true } = {}) {
+export async function exportCard(card, login, { download = true, prepareClone } = {}) {
   await document.fonts.ready;
   await Promise.all(
     [...card.querySelectorAll("img")].map((img) => img.decode()),
   );
   const clone = card.cloneNode(true);
+  if (prepareClone) prepareClone(clone);
   clone.classList.remove("auto-rotate");
   clone.classList.add("export-snapshot");
   const container = document.createElement("div");

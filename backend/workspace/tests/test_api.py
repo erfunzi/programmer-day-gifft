@@ -10,7 +10,7 @@ from workspace.views import digest, now_ms, protect, time_data, profile_fingerpr
 
 
 def bilingual(value):
-    localized = {**value, "role":"Developer", "sloganLead":"BUILDING WITH", "slogan":"PURPOSE", "traits":["Public tools"]}
+    localized = {**value, "role":"Developer", "sloganLead":"BUILDING WITH", "slogan":"PURPOSE", "traits":["Public tools"], "telegramText":"Builds useful public tools.", "featuredProjects":[]}
     return {"locales":{"fa":localized, "en":{**localized, "title":"Developer profile"}}, "imagePrompt":value.get("imagePrompt", "")}
 
 
@@ -110,7 +110,7 @@ class WorkspaceTests(TestCase):
 
     def test_analysis_reuses_fresh_matching_fingerprint(self):
         source = {"user":{"login":"developer"}, "repos":[]}
-        value = {"schemaVersion":3, "locales":{}, "fingerprint":profile_fingerprint(source)}
+        value = {"schemaVersion":3, "locales":{"fa":{"telegramText":"معرفی"},"en":{"telegramText":"Introduction"}}, "fingerprint":profile_fingerprint(source)}
         Report.objects.create(key="ai:1", value=value, saved=now_ms()-3600000)
         with patch("workspace.views.profile_data", return_value=source), patch("workspace.views.generate_ai_text") as external:
             self.assertEqual(self.post("/api/me/ai").json(), value)
@@ -152,7 +152,7 @@ class WorkspaceTests(TestCase):
 
     def test_introduction_is_cached_and_only_published_for_public_cards(self):
         source = {"user":{"login":"developer"}, "repos":[]}
-        value = {"schemaVersion":3, "locales":{"fa":{"resume":["اول", "دوم", "سوم"]}}, "fingerprint":profile_fingerprint(source)}
+        value = {"schemaVersion":3, "locales":{"fa":{"resume":["اول", "دوم", "سوم"],"telegramText":"معرفی"},"en":{"telegramText":"Introduction"}}, "fingerprint":profile_fingerprint(source)}
         Report.objects.create(key="ai:1", value=value, saved=now_ms())
         with patch("workspace.views.profile_data", return_value=source), patch("workspace.views.generate_ai_text") as external:
             self.assertEqual(self.post("/api/me/introduction").json()["lines"], value["locales"]["fa"]["resume"])

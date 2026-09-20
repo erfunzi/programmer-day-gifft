@@ -202,6 +202,12 @@ def clean_ai_value(value, provider="Gemini"):
         if not isinstance(raw.get("traits"), list):
             return None
         cleaned["traits"] = [x[:80] for x in raw["traits"] if isinstance(x, str)][:4]
+        telegram_text = raw.get("telegramText", "")
+        if not isinstance(telegram_text, str) or not telegram_text.strip():
+            return None
+        cleaned["telegramText"] = telegram_text.strip()[:420] if isinstance(telegram_text, str) else ""
+        projects = raw.get("featuredProjects", [])
+        cleaned["featuredProjects"] = [x[:100] for x in projects if isinstance(x, str)][:3] if isinstance(projects, list) else []
         for key in ("schemaVersion", "generatedAt", "provider", "imagePrompt"):
             cleaned.pop(key, None)
         locales[language] = cleaned
@@ -927,7 +933,7 @@ def generate_ai(user):
     cached = Report.objects.filter(key=f"ai:{user.id}").first()
     source = profile_data(user)
     fingerprint = profile_fingerprint(source)
-    if cached and isinstance(cached.value, dict) and cached.value.get("schemaVersion") == 3 and now_ms()-cached.saved < 86400000 and cached.value.get("fingerprint") == fingerprint:
+    if cached and isinstance(cached.value, dict) and cached.value.get("schemaVersion") == 3 and all(cached.value.get("locales", {}).get(lang, {}).get("telegramText") for lang in ("fa", "en")) and now_ms()-cached.saved < 86400000 and cached.value.get("fingerprint") == fingerprint:
         return cached.value
     if not reserve_report(f"limit:ai:{user.id}", 120000):
         raise AICooldown()
@@ -946,6 +952,10 @@ def generate_ai(user):
         "traits (2-4 brief evidence-based distinctive card badges), title (unique professional headline), "
         "summary (project analysis for nontechnical readers), resume (3-5 employer-facing paragraphs about demonstrated abilities and practical value), "
         "skills (array of {name, evidence, source}, source is project or self_reported; empty if no evidence), strengths (array), suggestions (array), "
+        "telegramText (a distinctive, concise channel introduction for THIS developer, max 420 characters, plain text; "
+        "focus on demonstrated work and practical value, no generic welcome, hashtags, links or invented facts). "
+        "Also include featuredProjects (up to 3 exact repository names from the provided evidence) in each locale; "
+        "choose substantive non-fork projects, exclude the profile README repository. "
         "imagePrompt (English gender-neutral 3D collectible). Read profileReadme FIRST: it is the person's own account-name repository, "
         "can contain their only skill evidence. Distinguish self-reported skills from demonstrated project work. Do not mistake a profile README "
         "for a software product. For sparse accounts without skills evidence use kind light humor about an empty public showcase, never insult or "

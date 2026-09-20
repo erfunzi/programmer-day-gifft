@@ -90,6 +90,12 @@ test('public card copies its themed link and dismisses the toast after five seco
 });
 
 test('Telegram initial publication survives reload and later publication requires a click', async ({page}) => {
+ await page.addInitScript(() => {
+   new MutationObserver(() => {
+     const card = document.querySelector('.export-snapshot');
+     if (card) window.telegramSnapshot = {text:card.textContent,lang:card.lang};
+   }).observe(document, {childList:true,subtree:true});
+ });
  const {sample} = await import('../src/lib/sample.js');
  let sent=0, state={configured:true, linked:false, joined:false, initialPublish:true,canPublish:true};
  await page.route('**/api/me',r=>r.fulfill({json:{user:{id:1,login:sample.user.login}}}));
@@ -105,6 +111,12 @@ test('Telegram initial publication survives reload and later publication require
  });
  await page.goto('/?theme=solar-forge');
  await expect.poll(()=>sent).toBe(1);
+ const snapshot = await page.evaluate(()=>window.telegramSnapshot);
+ expect(snapshot.lang).toBe('en');
+ expect(snapshot.text).toContain('BUILDING');
+ expect(snapshot.text).toContain('public projects');
+ expect(snapshot.text).not.toMatch(/[\u0600-\u06ff]/);
+ await expect(page.locator('#dev-card .role')).toHaveText('توسعه‌دهنده');
  await expect(page.locator('.toast')).toContainText('۲ ساعت');
  const box=await page.locator('.developer-introduction').boundingBox();
  const grid=await page.locator('.result-grid').boundingBox();
