@@ -31,7 +31,7 @@ test('React demo preserves card, tabs, timer and layout',async({page})=>{
  await page.getByRole('radio',{name:/شفق نعنایی/}).click();
 
  await page.getByRole('tab',{name:'گزارش پیشرفت'}).click();
- await expect(page.getByRole('heading',{name:'مسیر امسال، کنار پارسال'})).toBeVisible();
+ await expect(page.getByRole('heading',{name:'مسیر مشارکت‌های تو'})).toBeVisible();
  await expect(page.getByRole('button',{name:'تحلیل مسیر من'})).toHaveCount(0);
  await page.locator('.day-cell').first().focus();
  await expect(page.getByRole('tooltip')).toContainText('مشارکت');
@@ -146,7 +146,7 @@ test('language setting translates demo card, reports and time without requesting
  await expect(page.locator('.developer-introduction')).toContainText('I develop web tools');
  await expect(page.locator('.card-celebration')).toContainText('EVERYONE');
  await page.getByRole('tab',{name:'Progress report'}).click();
- await expect(page.getByRole('heading',{name:'This year alongside last year'})).toBeVisible();
+ await expect(page.getByRole('heading',{name:'Your contribution path'})).toBeVisible();
  await expect(page.locator('#reports-panel')).not.toContainText(/[\u0600-\u06ff]/);
  await page.getByRole('tab',{name:'Work time'}).click();
  await expect(page.getByRole('button',{name:'Start work'})).toBeVisible();

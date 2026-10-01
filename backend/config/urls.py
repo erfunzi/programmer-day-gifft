@@ -1,7 +1,10 @@
 from django.urls import path
 from workspace import views
+from workspace import discovery
 
 urlpatterns = [
+    path("robots.txt", discovery.robots),
+    path("sitemap.xml", discovery.sitemap),
     path("api/config", views.config),
     path("api/me", views.me),
     path("api/me/profile", views.profile),

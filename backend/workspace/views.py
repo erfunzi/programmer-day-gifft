@@ -16,6 +16,7 @@ from django.core.exceptions import RequestDataTooBig
 from django.db import transaction
 from django.http import HttpResponse, HttpResponseRedirect, JsonResponse
 from django.views.decorators.csrf import csrf_exempt
+from .public_data import public_card_payload, public_analysis
 
 from .models import (
     GeneratedImage,
@@ -650,7 +651,7 @@ def profile(request):
     if not user:
         return json_error("برای ادامه با GitHub وارد شو.", 401)
     source = profile_data(user)
-    UserProfile.objects.filter(pk=user.id).update(card={"user": source["user"], "repos": source["repos"]}, published=True)
+    UserProfile.objects.filter(pk=user.id).update(card=public_card_payload(source), published=True)
     return JsonResponse({**source, "preferences": {"theme": user.theme, "language": user.language}}, safe=False)
 
 
@@ -830,7 +831,7 @@ def share(request):
     requested_theme = str(payload(request).get("theme", "aurora-mint"))
     theme = requested_theme if re.fullmatch(r"[a-z0-9-]{2,40}", requested_theme) else "aurora-mint"
     source = profile_data(user)
-    card = {"user": source["user"], "repos": source["repos"]}
+    card = public_card_payload(source)
     UserProfile.objects.filter(pk=user.id).update(card=card, published=True)
     user.published = True
     return JsonResponse(
@@ -1097,7 +1098,7 @@ def card(request, login):
     if not user or not user.card:
         return json_error("این کارت منتشر نشده یا دیگر در دسترس نیست.", 404)
     intro = Report.objects.filter(key=f"ai:{user.id}").first()
-    return JsonResponse({**user.card, "preferences": {"theme": user.theme, "language": user.language}, "analysis": {k:v for k,v in intro.value.items() if k not in {"imagePrompt", "fingerprint"}} if intro else None})
+    return JsonResponse({**public_card_payload(user.card), "preferences": {"theme": user.theme, "language": user.language}, "analysis": public_analysis(intro.value) if intro else None})
 
 
 @api

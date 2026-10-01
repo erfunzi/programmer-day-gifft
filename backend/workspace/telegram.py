@@ -9,6 +9,7 @@ from django.db import transaction
 
 from .models import TelegramLink, TelegramPublication, UserProfile
 from .views import now_ms, profile_data, token
+from .public_data import public_card_payload
 
 
 API = "https://api.telegram.org/bot{}"
@@ -192,11 +193,11 @@ def profile_for_caption(user):
 
     cached = Report.objects.filter(key=f"profile:{user.id}").first()
     if cached and isinstance(cached.value, dict) and cached.value.get("user"):
-        return cached.value
+        return public_card_payload(cached.value)
     if isinstance(user.card, dict) and user.card.get("user"):
-        return {"user": user.card["user"], "repos": user.card.get("repos") or []}
+        return public_card_payload(user.card)
     try:
-        return profile_data(user)
+        return public_card_payload(profile_data(user))
     except Exception:
         return {
             "user": {
