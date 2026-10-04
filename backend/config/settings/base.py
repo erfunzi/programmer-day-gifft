@@ -54,6 +54,14 @@ CELERY_ACCEPT_CONTENT = ["json"]
 CELERY_TASK_SERIALIZER = "json"
 CELERY_RESULT_SERIALIZER = "json"
 CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = True
+STUDIO_ASYNC_JOBS = os.getenv('STUDIO_ASYNC_JOBS', 'false').lower() == 'true'
+STUDIO_EDITOR = os.getenv('STUDIO_EDITOR', 'true').lower() == 'true'
+STUDIO_INSIGHTS = os.getenv('STUDIO_INSIGHTS', 'true').lower() == 'true'
+STUDIO_TELEGRAM_PREVIEW = os.getenv('STUDIO_TELEGRAM_PREVIEW', 'true').lower() == 'true'
+CELERY_BEAT_SCHEDULE = {'studio-outbox': {'task': 'workspace.tasks.dispatch_outbox', 'schedule': 10.0}}
+LOGGING = {'version': 1, 'disable_existing_loggers': False,
+           'handlers': {'console': {'class': 'logging.StreamHandler'}},
+           'loggers': {'workspace.jobs': {'handlers': ['console'], 'level': 'INFO', 'propagate': False}}}
 
 # Match the reverse proxies; individual card images remain limited to 10 MiB.
 DATA_UPLOAD_MAX_MEMORY_SIZE = 12 * 1024 * 1024

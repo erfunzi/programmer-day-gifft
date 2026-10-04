@@ -1,5 +1,9 @@
 import {test,expect} from '@playwright/test';
 test.beforeEach(async ({page})=>{
+ await page.route('**/api/me/goal',r=>r.fulfill({json:{week:'2026-09-28',minutes:null,completed:0}}));
+ await page.route('**/api/me/snapshots',r=>r.fulfill({json:{snapshots:[]}}));
+ await page.route('**/api/me/jobs',r=>r.fulfill({json:{jobs:[]}}));
+ await page.route('**/api/me/editor',r=>r.fulfill({json:{version:0,value:{locales:{},links:[],projects:[]},revisions:[]}}));
  await page.route('**/api/config',r=>r.fulfill({json:{loginReady:true,aiReady:true,imageReady:true}}));
  await page.route('**/api/me',r=>r.fulfill({json:{user:null}}));
 });

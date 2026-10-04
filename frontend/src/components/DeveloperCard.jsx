@@ -11,6 +11,7 @@ import { characterProfile, characterAssetPath } from "../lib/character";
 import { exportCard } from "../lib/export-card";
 import { prepareTelegramCard } from "../lib/telegram-card";
 import { LoadingState } from "./LoadingState";
+import {Showcase, words} from './StudioEditor';
 
 export function DeveloperCard({
   profile,
@@ -25,7 +26,9 @@ export function DeveloperCard({
   const cardRef = useRef(null),
     data = useMemo(() => analyze(profile), [profile]);
   const telegramAutoPublished = useRef(false);
-  const introduction = useQuery({ queryKey: ["profile-analysis"], queryFn: () => api("/api/me/ai", {}), enabled: !!account && !visitor && !demo, retry: false, staleTime: 300000, refetchInterval: 300000, refetchOnWindowFocus: true });
+  const [previewURL,setPreviewURL] = useState('');
+  useEffect(()=>()=>{if(previewURL) URL.revokeObjectURL(previewURL);},[previewURL]);
+  const introduction = useQuery({ queryKey: ["profile-analysis"], queryFn: () => api("/api/me/ai", {}), enabled: !!account && !visitor && !demo, retry: false, staleTime: 300000, refetchInterval: q => ['pending','running'].includes(q.state.data?.job?.state) ? 5000 : 300000, refetchOnWindowFocus: true });
   const demoNarrative = {
     title: t("الکس؛ از وب دسترس‌پذیر تا خودکارسازی کارهای روزمره"),
     summary: t("پروژه‌های الکس در این نمونه بر دو مسئله متمرکزند: ساده‌ترکردن استفاده از وب و کاهش کارهای تکراری. accessible-web نمونه‌ای از توجه او به دسترس‌پذیری است."),
@@ -33,7 +36,8 @@ export function DeveloperCard({
     skills: [{ name: "TypeScript", evidence: "accessible-web", source: "project" }, { name: "Python", evidence: "small-automation", source: "project" }], strengths: [], suggestions: []
   };
   const analysis = visitor ? profile.analysis : introduction.data;
-  const narrative = demo ? { ...demoNarrative, role: t("توسعه‌دهندهٔ وب"), sloganLead: t("ساختن برای"), slogan: t("همه"), traits: ["TypeScript", "Python", t("وب دسترس‌پذیر")] } : (analysis?.locales?.[language] || (language === "fa" && analysis?.schemaVersion === 2 ? analysis : null));
+  const originalNarrative = demo ? { ...demoNarrative, role: t("توسعه‌دهندهٔ وب"), sloganLead: t("ساختن برای"), slogan: t("همه"), traits: ["TypeScript", "Python", t("وب دسترس‌پذیر")] } : (analysis?.locales?.[language] || (language === "fa" && analysis?.schemaVersion === 2 ? analysis : null));
+  const narrative = originalNarrative ? {...originalNarrative,...profile.editor?.locales?.[language]} : null;
   const generating = !demo && !visitor && introduction.isFetching && !narrative;
   const config = useQuery({ queryKey: ["config"], queryFn: () => api("/api/config") });
   const generateImage = useMutation({ mutationFn: () => api("/api/me/image", {}), onSuccess: (r) => {setImage(`${r.url}?v=${Date.now()}`);setStatus(r.message || t("کاراکتر آماده شد."));}, onError: (e) => setStatus(e.message) });
@@ -47,12 +51,13 @@ export function DeveloperCard({
     queryKey: ["telegram-status"],
     queryFn: () => api("/api/me/telegram"),
     enabled: !!account && !visitor && !demo
+    ,refetchInterval: q => ['pending','running'].includes(q.state.data?.job?.state)?5000:false
   });
   const telegramPublish = useMutation({
     mutationFn: async (mode = "manual") => {
       const card = await exportCard(cardRef.current, u.login, {
         download: false,
-        prepareClone: clone => prepareTelegramCard(clone, analysis?.locales?.en, data, holiday)
+        prepareClone: clone => prepareTelegramCard(clone, {...analysis?.locales?.en,...profile.editor?.locales?.en}, data, holiday)
       });
       const form = new FormData();
       form.append("mode", mode);
@@ -62,6 +67,9 @@ export function DeveloperCard({
     },
     onSuccess: (result) => {
       if (result.created) setStatus(telegram.data?.joined ? t("کارت در کانال تلگرام منتشر شد ✓") : t("کارتت در کانال تلگرام منتشر شد. برای اینکه حذف نشود، حسابت را از تنظیمات به تلگرام وصل کن و عضو کانال ما شو؛ در غیر این صورت تا ۲ ساعت دیگر حذف می‌شود."));
+      else if(result.job?.state==='unknown') setStatus(words('نتیجهٔ ارسال نامشخص است؛ تا بررسی، دوباره ارسال نمی‌شود.','Delivery is uncertain. Sending is blocked until reconciliation.'));
+      else if(result.job?.state==='pending') setStatus(words('ارسال در صف قرار گرفت.','Publication queued.'));
+      else if(result.job?.state==='failed') setStatus(words('ارسال انجام نشد؛ وضعیت را در تنظیمات بررسی کن.','Publication failed. Check status in settings.'));
       queryClient.invalidateQueries({ queryKey: ["telegram-status"] });
     },
     onError: (error) => {
@@ -71,6 +79,11 @@ export function DeveloperCard({
       }
       setStatus(error?.message || t("انتشار تلگرام انجام نشد."));
     }
+  });
+  const telegramImagePreview = useMutation({
+    mutationFn:()=>exportCard(cardRef.current,u.login,{download:false,prepareClone:clone=>prepareTelegramCard(clone,{...analysis?.locales?.en,...profile.editor?.locales?.en},data,holiday)}),
+    onSuccess:blob=>setPreviewURL(URL.createObjectURL(blob)),
+    onError:error=>setStatus(error.message)
   });
   const shareURL = `${location.origin}/?u=${encodeURIComponent(u.login)}&theme=${encodeURIComponent(theme)}&lang=${language}`;
   useEffect(() => {
@@ -124,6 +137,8 @@ export function DeveloperCard({
   });
   return (
     <div className="result-grid" lang={language} dir={language === "fa" ? "rtl" : "ltr"}>
+      {['pending','running'].includes(introduction.data?.job?.state) && <LoadingState variant="inline" label={words('نسخهٔ جدید در حال آماده‌شدن است؛ آخرین نسخه نمایش داده می‌شود.','Preparing an update; showing the last available version.')}/>}
+      {introduction.data?.job?.state==='failed' && <p role="status">{words('به‌روزرسانی انجام نشد؛ آخرین نسخه محفوظ است. کمی بعد دوباره تلاش می‌شود.','Update failed; the last version is preserved. We will check again later.')}</p>}
       <article
         ref={cardRef}
         id="dev-card"
@@ -297,6 +312,8 @@ export function DeveloperCard({
         {!visitor && !demo && telegram.data?.configured &&
         <Button variant="secondary" disabled={telegramPublish.isPending || !telegram.data.canPublish || !analysis?.locales?.en?.role} onClick={() => telegramPublish.mutate("manual")}>{telegramPublish.isPending ? t("در حال انتشار…") : t("انتشار در کانال تلگرام")}</Button>
         }
+        {!visitor && !demo && telegram.data?.configured && <Button variant="secondary" disabled={telegramImagePreview.isPending||!analysis?.locales?.en?.role} onClick={()=>telegramImagePreview.mutate()}>{telegramImagePreview.isPending?words('آماده‌سازی تصویر…','Preparing image…'):words('پیش‌نمایش تصویر انگلیسی تلگرام','Preview English Telegram image')}</Button>}
+        {previewURL && <figure><img src={previewURL} alt={words('پیش‌نمایش کارت انگلیسی تلگرام','English Telegram card preview')} style={{maxWidth:'100%',width:320}}/><figcaption>{words('این پیش‌نمایش چیزی ارسال نمی‌کند.','Previewing does not send a message.')}</figcaption><Button variant="ghost" onClick={()=>setPreviewURL('')}>{words('بستن پیش‌نمایش','Close preview')}</Button></figure>}
 
       </div>
         {narrative?.resume && <section className="surface developer-introduction" aria-label={t("معرفی حرفه‌ای")}>
@@ -304,6 +321,7 @@ export function DeveloperCard({
           {narrative.resume.map((line, i) => <p key={i}>{line}</p>)}
           <div className="resume-skills">{narrative.skills?.map((skill, i) => <div key={i}><strong>{skill.name}</strong><p>{skill.evidence}</p><small>{skill.source === "self_reported" ? t("بر اساس معرفی خود فرد") : t("بر اساس پروژه‌ها")}</small></div>)}</div>
         </section>}
+      {!demo && <Showcase editor={profile.editor} language={language} login={profile.user.login} repos={profile.repos}/>}
     </div>);
 
 }

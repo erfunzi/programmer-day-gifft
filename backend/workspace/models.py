@@ -33,6 +33,7 @@ class WorkSession(models.Model):
     user = models.ForeignKey(UserProfile, on_delete=models.CASCADE)
     started = models.BigIntegerField()
     ended = models.BigIntegerField(null=True, blank=True)
+    project = models.CharField(max_length=100, blank=True)
 
     class Meta:
         constraints = [
@@ -73,3 +74,66 @@ class TelegramPublication(models.Model):
     telegram_id = models.BigIntegerField(null=True, blank=True)
     theme = models.CharField(max_length=40, default="aurora-mint")
     created = models.BigIntegerField()
+
+
+class CardRevision(models.Model):
+    user = models.ForeignKey(UserProfile, on_delete=models.CASCADE)
+    number = models.PositiveIntegerField()
+    value = models.JSONField(default=dict)
+    created = models.BigIntegerField()
+    restored_from = models.PositiveIntegerField(null=True)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=['user', 'number'], name='card_revision_number')]
+
+
+class CardDraft(models.Model):
+    user = models.OneToOneField(UserProfile, on_delete=models.CASCADE, primary_key=True)
+    value = models.JSONField(default=dict)
+    version = models.PositiveIntegerField(default=0)
+
+
+class ActivitySnapshot(models.Model):
+    user = models.ForeignKey(UserProfile, on_delete=models.CASCADE)
+    period = models.CharField(max_length=30)
+    day = models.DateField()
+    value = models.JSONField()
+    captured = models.BigIntegerField()
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=['user', 'period', 'day'], name='daily_activity_snapshot')]
+
+
+class WeeklyGoal(models.Model):
+    user = models.ForeignKey(UserProfile, on_delete=models.CASCADE)
+    week = models.DateField()
+    minutes = models.PositiveIntegerField()
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=['user', 'week'], name='one_weekly_goal')]
+
+
+class BackgroundJob(models.Model):
+    user = models.ForeignKey(UserProfile, on_delete=models.CASCADE)
+    kind = models.CharField(max_length=20)
+    state = models.CharField(max_length=20, default='pending')
+    created = models.BigIntegerField()
+    updated = models.BigIntegerField()
+    error = models.CharField(max_length=100, blank=True)
+    data = models.JSONField(default=dict)
+    image = models.BinaryField(null=True)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=['user', 'kind'], condition=models.Q(state__in=['pending', 'running', 'unknown']), name='one_active_background_job')]
+
+
+class OutboxEvent(models.Model):
+    job = models.OneToOneField(BackgroundJob, on_delete=models.CASCADE)
+    dispatched = models.BigIntegerField(null=True)
+
+
+class JobAudit(models.Model):
+    job = models.ForeignKey(BackgroundJob, on_delete=models.CASCADE)
+    created = models.BigIntegerField()
+    actor = models.CharField(max_length=150)
+    note = models.TextField()

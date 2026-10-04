@@ -112,3 +112,24 @@ html[lang="en"] .languages{justify-content:flex-start}
 @keyframes narrative-shimmer{to{background-position:-200% 0}}
 @media(prefers-reduced-motion:reduce){.dev-card.auto-rotate,.analysis-loading i,.loading-orbit{animation:none!important;transform:none!important}}
 @media print{.dev-card.auto-rotate{animation:none!important;transform:none!important}}
+/* Studio inputs remain usable across all nine themes and both directions. */
+.studio-editor fieldset {border:0; padding:0; min-width:0}
+.studio-fields {display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:1rem}
+.studio-editor label {display:grid;gap:.5rem;margin-block:.75rem}
+.studio-editor textarea,.studio-editor input,.focus-timer input {width:100%;border:1px solid var(--theme-line);border-radius:10px;padding:.75rem;background:var(--theme-surface);color:inherit;font:inherit}
+.studio-editor textarea {resize:vertical}
+.studio-editor details {margin-block:1.25rem;padding:1rem;border:1px solid var(--theme-line);border-radius:12px}
+.studio-editor summary,.studio-showcase summary {cursor:pointer;padding-block:.5rem;color:var(--theme-accent)}
+.studio-editor :is(input,textarea,select,summary):focus-visible,.studio-insights :is(input,select):focus-visible {outline:2px solid var(--theme-accent);outline-offset:3px}
+.studio-insights input {display:block;width:100%;max-width:240px;padding:.75rem;border:1px solid var(--theme-line);border-radius:10px;background:var(--theme-chip);color:inherit;font:inherit;margin-block:.75rem}
+.studio-insights progress {width:100%;accent-color:var(--theme-accent)}
+.studio-editor .studio-case {border:1px solid var(--theme-line);padding:1rem;margin-block:1rem;border-radius:12px}
+.studio-row {display:flex;flex-wrap:wrap;gap:.75rem;align-items:center;margin-block:1rem}
+.studio-row input {flex:1;min-width:120px}
+.studio-showcase {grid-column:1/-1}
+.studio-showcase article {padding-block:1rem;border-bottom:1px solid var(--theme-line)}
+.telegram-preview {white-space:pre-wrap;overflow-wrap:anywhere;font:inherit}
+.snapshot-bars {height:220px;display:flex;align-items:stretch;gap:12px;overflow-x:auto;padding:1rem 0 3rem}
+.snapshot-bars>div {min-width:95px;display:flex;flex-direction:column;justify-content:end;align-items:center}
+.snapshot-bars span {display:block;width:24px;background:currentColor;border-radius:6px 6px 0 0;color:var(--mint)}
+.snapshot-bars small {white-space:nowrap}

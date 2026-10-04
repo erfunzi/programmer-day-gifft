@@ -1,5 +1,6 @@
 import { setLocale, t } from "./lib/i18n";
 import { TelegramSettings } from "./components/TelegramSettings";
+import {StudioEditor} from './components/StudioEditor';
 import { TimezoneSettings } from "./components/TimezoneSettings";
 import { useEffect, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -269,16 +270,18 @@ export default function App() {
                   selection={reportYear}
                   setSelection={setReportYear}
                   createdAt={data.user.created_at}
+                  insights={config.data?.studio?.insights !== false}
                   demo={demo}
                   onImage={() => setImageVersion(Date.now())} />
                 
                   </TabsContent>
                   <TabsContent value="time" forceMount>
-                    <Timer demo={demo} />
+                    <Timer demo={demo} insights={config.data?.studio?.insights !== false} />
                   </TabsContent>
                 </>
             }
               {!visitor && <TabsContent value="settings">
+                {!demo && config.data?.studio?.editor !== false && <StudioEditor profile={data}/>}
                 <section className="surface settings-locale">
                   <fieldset disabled={savePreferences.isPending} className="preference-fields settings-pair">
                     <div className="settings-field language-settings">
@@ -294,7 +297,7 @@ export default function App() {
                 <fieldset disabled={savePreferences.isPending} className="preference-fields">
                   <ThemePicker value={theme} onChange={(theme) => choosePreferences({ theme })} />
                 </fieldset>
-                <TelegramSettings demo={demo} />
+                <TelegramSettings demo={demo} previewEnabled={config.data?.studio?.telegramPreview !== false} />
               </TabsContent>}
             </Tabs>
           </section>

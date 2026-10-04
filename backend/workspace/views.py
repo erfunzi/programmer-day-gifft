@@ -58,7 +58,8 @@ def reveal(value):
 
 def payload(request):
     try:
-        return json.loads(request.body or "{}")
+        value = json.loads(request.body or "{}")
+        return value if isinstance(value, dict) else {}
     except json.JSONDecodeError:
         return {}
 
@@ -414,7 +415,7 @@ def api(view):
                     )
                 ):
                     return json_error("درخواست معتبر نیست.", 403)
-                max_body = 12 * 1024 * 1024 if view.__name__ == "telegram_publish" else 4096
+                max_body = 12 * 1024 * 1024 if view.__name__ == "telegram_publish" else (131072 if view.__name__ == 'editor' else 4096)
                 if len(request.body) > max_body:
                     return json_error("درخواست بیش از حد بزرگ است.", 413)
             response = view(request, *args, **kwargs)
@@ -593,10 +594,10 @@ def time_data(user):
     return {
         "serverNow": current,
         "active": next(
-            ({"id": r.id, "started": r.started} for r in rows if r.ended is None), None
+            ({"id": r.id, "started": r.started, "project": r.project} for r in rows if r.ended is None), None
         ),
         "history": [
-            {"id": r.id, "started": r.started, "ended": r.ended}
+            {"id": r.id, "started": r.started, "ended": r.ended, "project": r.project}
             for r in rows[-30:][::-1]
         ],
         "total": total,
@@ -621,6 +622,7 @@ def config(request):
             ),
             "aiReady": bool(os.getenv("GEMINI_API_KEY")),
             "imageReady": bool(os.getenv("GEMINI_API_KEY")),
+            'studio': {'editor': settings.STUDIO_EDITOR, 'insights': settings.STUDIO_INSIGHTS, 'telegramPreview': settings.STUDIO_TELEGRAM_PREVIEW},
         }
     )
 
@@ -652,7 +654,9 @@ def profile(request):
         return json_error("برای ادامه با GitHub وارد شو.", 401)
     source = profile_data(user)
     UserProfile.objects.filter(pk=user.id).update(card=public_card_payload(source), published=True)
-    return JsonResponse({**source, "preferences": {"theme": user.theme, "language": user.language}}, safe=False)
+    from .studio import projection
+    user.card = public_card_payload(source)
+    return JsonResponse({**source, **projection(user), "preferences": {"theme": user.theme, "language": user.language}}, safe=False)
 
 
 @api
@@ -766,6 +770,8 @@ def activity(request):
         data["previous"].update(compact(node.get("previous")))
     except requests.RequestException:
         return json_error("گزارش فعالیت از GitHub دریافت نشد.", 503)
+    from .studio import record_snapshot
+    record_snapshot(user, data)
     return JsonResponse(data)
 
 
@@ -787,10 +793,13 @@ def time_start(request):
     user = session_user(request)
     if not user:
         return json_error("برای ادامه با GitHub وارد شو.", 401)
+    project = payload(request).get('project', '')
+    if not isinstance(project, str) or len(project) > 100:
+        return json_error('نام پروژه معتبر نیست.')
     with transaction.atomic():
         UserProfile.objects.select_for_update().get(pk=user.pk)
         if not WorkSession.objects.filter(user=user, ended__isnull=True).exists():
-            WorkSession.objects.create(id=token(), user=user, started=now_ms())
+            WorkSession.objects.create(id=token(), user=user, started=now_ms(), project=project.strip())
     return JsonResponse(time_data(user))
 
 
@@ -850,9 +859,15 @@ def telegram_status(request):
     from .telegram import channel_url, configured, member_status, publication_state
     link = user.telegramlink_set.filter(telegram_id__isnull=False).first()
     status = member_status(link.telegram_id) if link else None
+    from .models import BackgroundJob
+    from .jobs import serialize
+    job = BackgroundJob.objects.filter(user=user, kind='telegram').order_by('-created').first()
+    blocked = bool(job and job.state in ('pending', 'running', 'unknown'))
     return JsonResponse(
         {
             **publication_state(user),
+            **({'canPublish': False, 'initialPublish': False} if blocked else {}),
+            'job': serialize(job) if job else None,
             "configured": configured(),
             "linked": bool(link),
             "joined": status in {"creator", "administrator", "member", "restricted"},
@@ -895,21 +910,14 @@ def telegram_publish(request):
             return json_error("تصویر کارت معتبر نیست.", 413)
         image_bytes = card_image.read()
         image_mime = card_image.content_type
-    try:
-        result = publish(user, theme, refresh=form_data.get("mode") != "initial", card_image=(image_bytes, image_mime) if image_bytes else None)
-    except PublicationUnavailable as exc:
-        return json_error(str(exc), 409)
-    except TelegramAPIError:
-        return json_error("بررسی یا انتشار پیام تلگرام انجام نشد؛ دوباره امتحان کن.", 503)
-    except requests.RequestException:
-        return json_error("انتشار در کانال تلگرام انجام نشد.", 503)
-    except RuntimeError as exc:
-        if "final rendered" in str(exc):
-            return json_error("تصویر نهایی کارت دریافت نشد.", 422)
-        return json_error("تلگرام هنوز تنظیم نشده است.", 503)
-    if not result and os.getenv("TELEGRAM_REQUIRE_JOIN", "false").lower() == "true":
-        return json_error("ابتدا حساب تلگرام را وصل کن و در کانال عضو شو.", 403)
-    return JsonResponse({"published": bool(result), "created": result.get("created", True) if result else False, "messageId": result.get("message_id") if result else None})
+    if not image_bytes:
+        return json_error('تصویر نهایی کارت دریافت نشد.', 422)
+    from .jobs import enqueue, serialize, run_job
+    job = enqueue(user, 'telegram', {'theme': theme, 'refresh': form_data.get('mode') != 'initial', 'mime': image_mime}, image_bytes)
+    if not getattr(settings, 'STUDIO_ASYNC_JOBS', False) and job.state == 'pending':
+        run_job(job.pk)
+        job.refresh_from_db()
+    return JsonResponse({'published': job.state == 'succeeded', 'created': job.state == 'succeeded' and job.data.get('created', False), 'messageId': job.data.get('messageId'), 'job': serialize(job)}, status=202 if job.state in ('pending', 'running') else 200)
 
 
 @csrf_exempt
@@ -928,15 +936,13 @@ def telegram_webhook(request):
     return JsonResponse({"ok": True})
 
 
-@transaction.atomic
 def generate_ai(user):
-    UserProfile.objects.select_for_update().get(pk=user.pk)
     cached = Report.objects.filter(key=f"ai:{user.id}").first()
     source = profile_data(user)
     fingerprint = profile_fingerprint(source)
     if cached and isinstance(cached.value, dict) and cached.value.get("schemaVersion") == 3 and all(cached.value.get("locales", {}).get(lang, {}).get("telegramText") for lang in ("fa", "en")) and now_ms()-cached.saved < 86400000 and cached.value.get("fingerprint") == fingerprint:
         return cached.value
-    if not reserve_report(f"limit:ai:{user.id}", 120000):
+    if not reserve_report(f"limit:ai:{user.id}", 1800000):
         raise AICooldown()
     if not (os.getenv("GEMINI_API_KEY") or os.getenv("AGENTROUTER_API_KEY") or os.getenv("ATRIA_API_KEY")):
         raise RuntimeError("AI is not configured")
@@ -974,6 +980,7 @@ def generate_ai(user):
         raise ValueError("AI response was not valid")
     value["fingerprint"] = fingerprint
     Report.objects.update_or_create(key=f"ai:{user.id}", defaults={"value": value, "saved": now_ms()})
+    Report.objects.filter(key=f'limit:ai:{user.id}').delete()
     return value
 
 
@@ -983,6 +990,18 @@ def ai(request):
     user = session_user(request)
     if not user:
         return json_error("برای ادامه با GitHub وارد شو.", 401)
+    if getattr(settings, 'STUDIO_ASYNC_JOBS', False):
+        from .jobs import enqueue, serialize
+        cached = Report.objects.filter(key=f'ai:{user.pk}').first()
+        source = profile_data(user)
+        if cached and cached.value.get('fingerprint') == profile_fingerprint(source) and now_ms() - cached.saved < 86400000 and cached.value.get('schemaVersion') == 3:
+            return JsonResponse(cached.value)
+        from .models import BackgroundJob
+        failed = BackgroundJob.objects.filter(user=user, kind='ai', state='failed', updated__gt=now_ms()-300000).order_by('-created').first()
+        if failed:
+            return JsonResponse({**(cached.value if cached else {}), 'job': serialize(failed)})
+        job = enqueue(user, 'ai')
+        return JsonResponse({**(cached.value if cached else {}), 'job': serialize(job)}, status=202)
     try:
         return JsonResponse(generate_ai(user))
     except AICooldown:
@@ -1098,7 +1117,8 @@ def card(request, login):
     if not user or not user.card:
         return json_error("این کارت منتشر نشده یا دیگر در دسترس نیست.", 404)
     intro = Report.objects.filter(key=f"ai:{user.id}").first()
-    return JsonResponse({**public_card_payload(user.card), "preferences": {"theme": user.theme, "language": user.language}, "analysis": public_analysis(intro.value) if intro else None})
+    from .studio import projection
+    return JsonResponse({**public_card_payload(user.card), **projection(user), "preferences": {"theme": user.theme, "language": user.language}, "analysis": public_analysis(intro.value) if intro else None})
 
 
 @api

@@ -1,8 +1,15 @@
 from django.urls import path
 from workspace import views
 from workspace import discovery
+from workspace import studio, jobs
 
 urlpatterns = [
+    path('api/health', studio.health),
+    path('api/me/editor', studio.editor),
+    path('api/me/snapshots', studio.snapshots),
+    path('api/me/goal', studio.goal),
+    path('api/me/jobs', jobs.status),
+    path('api/me/telegram/preview', jobs.preview),
     path("robots.txt", discovery.robots),
     path("sitemap.xml", discovery.sitemap),
     path("api/config", views.config),

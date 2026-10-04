@@ -1,5 +1,7 @@
 import { t, locale } from "../lib/i18n";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import {useEffect} from 'react';
+import {SnapshotTrends} from './StudioInsights';
 import { LoadingState } from "./LoadingState";
 import { Button } from "./ui/button";
 import { Metric } from "./Metric";
@@ -7,7 +9,8 @@ import { api, number } from "../lib/api";
 import { activityStats, exportReport } from "../lib/activity";
 import { ActivityCharts } from "./ActivityCharts";
 
-export function Reports({ demo, onImage, createdAt, selection, setSelection }) {
+export function Reports({ demo, onImage, createdAt, selection, setSelection, insights=true }) {
+  const client = useQueryClient();
   const year = new Date().getUTCFullYear();
   const firstYear = Math.min(year, new Date(createdAt).getUTCFullYear() || year);
   const years = Array.from({ length: year - firstYear }, (_, i) => year - i - 1);
@@ -53,6 +56,7 @@ export function Reports({ demo, onImage, createdAt, selection, setSelection }) {
           timeZone: "UTC",
         })
       : "—";
+  useEffect(()=>{if(report.data&&!demo) client.invalidateQueries({queryKey:['snapshots']});},[report.dataUpdatedAt,demo,client]);
   const fact = (period, key) => {
     const stats = activityStats(period);
     if (key === "bestDay") {
@@ -166,6 +170,7 @@ export function Reports({ demo, onImage, createdAt, selection, setSelection }) {
           createdAt={createdAt}
         />
       )}
+      {!demo && insights && <SnapshotTrends/>}
     </>
   );
 }

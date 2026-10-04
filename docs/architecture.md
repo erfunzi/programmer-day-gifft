@@ -10,7 +10,7 @@
 
 The production Compose file runs PostgreSQL, Django/Gunicorn and a built React frontend served by Nginx. The development override mounts backend and frontend sources for reload and preserves container dependencies in a named volume. Only the frontend is exposed on localhost port 8080. Existing host Nginx can route `developer.lyroo.space` to it.
 
-Redis, Celery worker and Celery Beat are available through the optional `jobs` profile. They are infrastructure for background jobs; current AI endpoints remain synchronous and are not silently queued. No periodic business task is configured.
+Redis, Celery worker and Celery Beat are available through the optional `jobs` profile. With `STUDIO_ASYNC_JOBS=true`, AI and Telegram jobs use a durable PostgreSQL outbox dispatched every ten seconds. The default remains synchronous for installations without workers. Telegram membership enforcement remains in the separate `telegram-maintenance` service. See [Studio delivery and operations](STUDIO-CORE-DELIVERY.fa.md) for flags, migrations, recovery and rollback.
 
 Database changes use committed Django migration files. Neither image build, container startup nor HTTP requests run migrations or create tables. Applying migrations is an explicit release step:
 
@@ -28,4 +28,4 @@ Source assets now live under `frontend/public`; only public fonts, styles, favic
 
 ## Validation
 
-Frontend: production Vite build and Playwright desktop/mobile tests. Backend: Django system checks, migrations consistency check, API tests with fake credentials and an isolated SQLite test database. Full PostgreSQL/container integration additionally requires a running Docker engine.
+Frontend: production Vite build and Playwright desktop/mobile tests. Backend: Django system checks, migrations consistency check, API tests with fake credentials and isolated SQLite or PostgreSQL test databases (`config.settings.test` / `config.settings.ci`). CI runs PostgreSQL including row-lock concurrency tests. External provider calls are mocked; deployment still needs staging smoke tests.

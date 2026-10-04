@@ -5,8 +5,11 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Play, Square } from "lucide-react";
 import { Button } from "./ui/button";
 import { Metric } from "./Metric";
+import {WeeklyTarget} from './StudioInsights';
+import {words} from './StudioEditor';
 import { api, dayKey, duration, hours, number } from "../lib/api";
-export function Timer({ demo }) {
+export function Timer({ demo, insights=true }) {
+  const [project,setProject] = useState('');
   const client = useQueryClient(),
     [now, setNow] = useState(Date.now()),
     [demoState, setDemo] = useState({ active: null, total: 0, history: [] });
@@ -37,7 +40,7 @@ export function Timer({ demo }) {
     mutationFn: () =>
     api(
       "/api/me/time/" + (timerData.active ? "stop" : "start"),
-      timerData.active ? { id: timerData.active.id } : {}
+      timerData.active ? { id: timerData.active.id } : {project}
     ),
     onSuccess: (value) => {
       client.setQueryData(["time"], value);
@@ -78,6 +81,7 @@ export function Timer({ demo }) {
             MAKE ROOM FOR FOCUS
           </div>
           <h2>{t("زمانِ ساختن")}</h2>
+          <label>{words('پروژهٔ این جلسه','Session project')}<input maxLength={100} disabled={!!timerData?.active} value={timerData?.active?.project||project} onChange={e=>setProject(e.target.value)}/></label>
           <div className={"timer-orbit" + (timerData?.active ? " running" : "")}>
             <span id="timer-clock" dir="ltr">
               {timerData?.active ?
@@ -97,7 +101,7 @@ export function Timer({ demo }) {
         <div>
           <div className="metric-grid time-metrics">
             {timerData &&
-            <>
+    <>
                 <Metric
                 label={t("امروز")}
                 value={hours(timerData.today)}
@@ -154,11 +158,13 @@ export function Timer({ demo }) {
           </section>
         </div>
       </div>
+      {!demo && insights && <WeeklyTarget/>}
       <section className="surface">
         <h3>{t("جلسه‌های اخیر")}</h3>
         {timerData?.history.length ?
         timerData.history.map((r) =>
         <div className="history-row" key={r.id}>
+              {r.project && <strong>{r.project}</strong>}
               <span>
                 {new Date(r.started).toLocaleString(locale(), {
               timeZone: timerData.timezone
