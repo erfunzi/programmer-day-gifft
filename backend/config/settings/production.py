@@ -6,6 +6,8 @@ DEBUG = False
 SECURE_CONTENT_TYPE_NOSNIFF = True
 SECURE_REFERRER_POLICY = "same-origin"
 SECURE_SSL_REDIRECT = True
+# Container probes hit plain HTTP on localhost; nginx still terminates TLS publicly.
+SECURE_REDIRECT_EXEMPT = [r"^api/health$"]
 SECURE_HSTS_SECONDS = 31536000
 SECURE_HSTS_INCLUDE_SUBDOMAINS = True
 SECURE_HSTS_PRELOAD = True
